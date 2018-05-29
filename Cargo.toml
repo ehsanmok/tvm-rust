@@ -5,8 +5,8 @@ authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
 license = "Apache-2.0"
 readme = "README.md"
 
-repository = "https://github.com/ehanmok/tvm-rust"
-documentation = "https://docs.rs/tvm-rust/"
+repository = "https://github.com/ehsanmok/tvm-rust"
+documentation = "https://docs.rs/tvm-rust/0.0.1/tvm-rust"
 
 description = "Rust support for TVM runtime"
 
