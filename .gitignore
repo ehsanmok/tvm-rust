@@ -2,3 +2,4 @@
 **/*.rs.bk
 Cargo.lock
 /tvm-sys/Cargo.lock
+/tvm-sys/target
