@@ -6,7 +6,7 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 #![crate_name = "tvm_rust"]
-#![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.1/tvm-rust")]
+#![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
 #![allow(non_camel_case_types, unused_imports, unused_unsafe)]
 
 //! [WIP]
