@@ -1,0 +1,11 @@
+[package]
+name = "tvm-rust"
+version = "0.0.1"
+authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
+
+[dependencies]
+libc = "0.2"
+tvm-sys = { version = "0.1.0", path = "tvm-sys" }
+
+[dev-dependencies]
+clippy = { version = "*" }
