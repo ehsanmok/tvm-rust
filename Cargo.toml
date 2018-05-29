@@ -21,7 +21,7 @@ libc = "0.2"
 tvm-sys = { version = "0.1.0", path = "tvm-sys" }
 
 [dev-dependencies]
-clippy = { version = "*" }
+clippy = { version = "0.0.206" }
 
 [profile.release]
 debug = true
