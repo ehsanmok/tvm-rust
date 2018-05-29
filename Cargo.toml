@@ -2,6 +2,19 @@
 name = "tvm-rust"
 version = "0.0.1"
 authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
+license = "Apache-2.0"
+readme = "README.md"
+
+repository = "https://github.com/ehanmok/tvm-rust"
+documentation = "https://docs.rs/tvm-rust/"
+
+description = "Rust support for TVM runtime"
+
+keywords = ["rust", "tvm", "nnvm"]
+categories = ["api-bindings", "science"]
+
+[lib]
+name = "tvm_rust"
 
 [dependencies]
 libc = "0.2"
@@ -9,3 +22,12 @@ tvm-sys = { version = "0.1.0", path = "tvm-sys" }
 
 [dev-dependencies]
 clippy = { version = "*" }
+
+[profile.release]
+debug = true
+
+[package.metadata.release]
+no-dev-version = true
+
+[package.metadata.docs.rs]
+features = ["docs"]
