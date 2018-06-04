@@ -15,6 +15,7 @@ fn main() {
         .rustified_enum("TVMTypeCode")
         .rustified_enum("TVMDeviceExtType")
         .blacklist_type("max_align_t")
+        .layout_tests(false)
         .generate()
         .expect("Unable to generate bindings");
 

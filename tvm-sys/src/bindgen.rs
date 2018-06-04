@@ -113,19 +113,6 @@ pub struct DLContext {
     /// \brief The device index
     pub device_id: ::std::os::raw::c_int,
 }
-#[test]
-fn bindgen_test_layout_DLContext() {
-    assert_eq!(
-        ::std::mem::size_of::<DLContext>(),
-        8usize,
-        concat!("Size of: ", stringify!(DLContext))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<DLContext>(),
-        4usize,
-        concat!("Alignment of ", stringify!(DLContext))
-    );
-}
 #[repr(u32)]
 /// \brief The type code options DLDataType.
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -153,19 +140,6 @@ pub struct DLDataType {
     /// \brief Number of lanes in the type, used for vector types.
     pub lanes: u16,
 }
-#[test]
-fn bindgen_test_layout_DLDataType() {
-    assert_eq!(
-        ::std::mem::size_of::<DLDataType>(),
-        4usize,
-        concat!("Size of: ", stringify!(DLDataType))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<DLDataType>(),
-        2usize,
-        concat!("Alignment of ", stringify!(DLDataType))
-    );
-}
 /// \brief Plain C Tensor object, does not manage memory.
 #[repr(C)]
 #[derive(Debug, Copy, Clone)]
@@ -188,19 +162,6 @@ pub struct DLTensor {
     /// \brief The offset in bytes to the beginning pointer to data
     pub byte_offset: u64,
 }
-#[test]
-fn bindgen_test_layout_DLTensor() {
-    assert_eq!(
-        ::std::mem::size_of::<DLTensor>(),
-        48usize,
-        concat!("Size of: ", stringify!(DLTensor))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<DLTensor>(),
-        8usize,
-        concat!("Alignment of ", stringify!(DLTensor))
-    );
-}
 /// \brief C Tensor object, manage memory of DLTensor. This data structure is
 /// intended to faciliate the borrowing of DLTensor by another framework. It is
 /// not meant to transfer the tensor. When the borrowing framework doesn't need
@@ -218,19 +179,6 @@ pub struct DLManagedTensor {
     /// to destruct manager_ctx which holds the DLManagedTensor. It can be NULL
     /// if there is no way for the caller to provide a reasonable destructor.
     pub deleter: ::std::option::Option<unsafe extern "C" fn(self_: *mut DLManagedTensor)>,
-}
-#[test]
-fn bindgen_test_layout_DLManagedTensor() {
-    assert_eq!(
-        ::std::mem::size_of::<DLManagedTensor>(),
-        64usize,
-        concat!("Size of: ", stringify!(DLManagedTensor))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<DLManagedTensor>(),
-        8usize,
-        concat!("Alignment of ", stringify!(DLManagedTensor))
-    );
 }
 /// \brief type of array index.
 pub type tvm_index_t = i64;
@@ -289,19 +237,6 @@ pub union TVMValue {
     pub v_ctx: TVMContext,
     _bindgen_union_align: u64,
 }
-#[test]
-fn bindgen_test_layout_TVMValue() {
-    assert_eq!(
-        ::std::mem::size_of::<TVMValue>(),
-        8usize,
-        concat!("Size of: ", stringify!(TVMValue))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<TVMValue>(),
-        8usize,
-        concat!("Alignment of ", stringify!(TVMValue))
-    );
-}
 /// \brief Byte array type used to pass in byte array
 /// When kBytes is used as data type.
 #[repr(C)]
@@ -309,19 +244,6 @@ fn bindgen_test_layout_TVMValue() {
 pub struct TVMByteArray {
     pub data: *const ::std::os::raw::c_char,
     pub size: usize,
-}
-#[test]
-fn bindgen_test_layout_TVMByteArray() {
-    assert_eq!(
-        ::std::mem::size_of::<TVMByteArray>(),
-        16usize,
-        concat!("Size of: ", stringify!(TVMByteArray))
-    );
-    assert_eq!(
-        ::std::mem::align_of::<TVMByteArray>(),
-        8usize,
-        concat!("Alignment of ", stringify!(TVMByteArray))
-    );
 }
 /// \brief Handle to TVM runtime modules.
 pub type TVMModuleHandle = *mut ::std::os::raw::c_void;
