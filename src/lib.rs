@@ -26,6 +26,8 @@ use std::fmt::{Display, Formatter};
 use std::os::raw::c_int;
 use std::ptr;
 
+use libc::c_void;
+
 /// Macro to check the return call to TVM runtime shared library
 #[macro_export]
 macro_rules! check_call {
@@ -74,17 +76,25 @@ pub mod ndarray;
 
 /// Type of devices supported by TVM. Default is cpu.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct TVMDeviceType(usize);
+pub struct TVMDeviceType {
+    inner: tvm::DLDeviceType,
+}
 
 impl TVMDeviceType {
     pub fn new(device_type: tvm::DLDeviceType) -> Self {
-        TVMDeviceType(device_type as usize)
+        TVMDeviceType { inner: device_type }
     }
 }
 
 impl Default for TVMDeviceType {
     fn default() -> Self {
-        TVMDeviceType(tvm::DLDeviceType::kDLCPU as usize)
+        TVMDeviceType::new(tvm::DLDeviceType::kDLCPU)
+    }
+}
+
+impl From<TVMDeviceType> for tvm::DLDeviceType {
+    fn from(device_type: TVMDeviceType) -> Self {
+        device_type.inner
     }
 }
 
@@ -194,11 +204,20 @@ impl TVMContext {
 impl TVMContext {
     pub fn sync(&self) -> TVMResult<()> {
         check_call!(tvm::TVMSynchronize(
-            self.device_type.0 as i32,
+            self.device_type.inner as i32,
             self.device_id,
             ptr::null_mut()
         ));
         Ok(())
+    }
+}
+
+impl From<TVMContext> for tvm::DLContext {
+    fn from(ctx: TVMContext) -> Self {
+        tvm::DLContext {
+            device_type: tvm::DLDeviceType::from(ctx.device_type),
+            device_id: ctx.device_id,
+        }
     }
 }
 
@@ -235,6 +254,12 @@ impl<'a> From<&'a str> for TVMType {
             "handle" => TVMType::new(4, 64, 1),
             _ => panic!("Unsupported type {:?}", type_str),
         }
+    }
+}
+
+impl From<TVMType> for tvm::DLDataType {
+    fn from(dtype: TVMType) -> Self {
+        dtype.inner
     }
 }
 
