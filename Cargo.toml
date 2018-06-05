@@ -16,10 +16,13 @@ categories = ["api-bindings", "science"]
 
 [lib]
 name = "tvm_rust"
+crate-type = ["dylib"]
 
 [dependencies]
 libc = "0.2"
 tvm-sys = { version = "0.1.0", path = "tvm-sys" }
+
+[workspace]
 
 [dev-dependencies]
 clippy = { version = "0.0.205" }
