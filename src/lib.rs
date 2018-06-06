@@ -23,10 +23,8 @@ use std::error::Error;
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::os::raw::c_int;
+use std::os::raw::{c_int, c_void};
 use std::ptr;
-
-use libc::c_void;
 
 /// Macro to check the return call to TVM runtime shared library
 #[macro_export]
@@ -44,11 +42,12 @@ pub struct TVMError;
 
 impl TVMError {
     /// Get the last error message from TVM
-    pub fn last() -> String {
+    pub fn last() -> &'static str {
         unsafe {
-            CStr::from_ptr(tvm::TVMGetLastError())
-                .to_string_lossy()
-                .into_owned()
+            match CStr::from_ptr(tvm::TVMGetLastError()).to_str() {
+                Ok(s) => s,
+                Err(_) => "Invalid UTF-8 message",
+            }
         }
     }
 }
@@ -61,7 +60,7 @@ impl Display for TVMError {
 
 impl Error for TVMError {
     fn description(&self) -> &str {
-        unsafe { CStr::from_ptr(tvm::TVMGetLastError()).to_str().unwrap() }
+        TVMError::last()
     }
 
     fn cause(&self) -> Option<&Error> {
@@ -228,6 +227,7 @@ impl Display for TVMContext {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct TVMType {
     inner: tvm::TVMType, // (type) code: u8, bits: u8, lanes: u16
 }
@@ -263,6 +263,29 @@ impl From<TVMType> for tvm::DLDataType {
     }
 }
 
+pub struct TVMArrayHandle {
+    handle: tvm::TVMArrayHandle
+}
+
+pub struct TVMArray {
+    raw: tvm::TVMArray
+}
+
+impl TVMArray {
+    fn new(shape: &mut [i32], ctx: TVMContext, dtype: TVMType) -> Self {
+        let raw = tvm::TVMArray {
+            data: ptr::null_mut() as *mut c_void,
+            ctx: tvm::DLContext::from(ctx),
+            ndim: shape.len() as c_int,
+            dtype: tvm::DLDataType::from(dtype),
+            shape: shape.as_mut_ptr() as *mut i64,
+            strides: ptr::null_mut() as *mut i64,
+            byte_offset: 0u64,
+        };
+        TVMArray { raw }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -277,7 +300,15 @@ mod tests {
         let str_ctx = TVMContext::new(TVMDeviceType::from("gpu"), 0);
         assert_eq!(str_ctx.current_context().clone(), str_ctx);
         assert_ne!(str_ctx, TVMContext::new(TVMDeviceType::from("cpu"), 0));
+    }
 
-        //assert!(ctx.sync().is_ok());
+    #[test]
+    fn array() {
+        let shape = &mut [1, 2];
+        let ctx = TVMContext::cpu(0);
+        let dtype = TVMType::from("float");
+        let empty = TVMArray::new(shape, ctx, dtype);
+        assert!(empty.raw.data.is_null());
+        assert_eq!(empty.raw.ndim, shape.len() as i32);
     }
 }
