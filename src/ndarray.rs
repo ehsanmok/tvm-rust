@@ -22,7 +22,7 @@ impl NDArray {
     // TODO: fix
     pub fn empty(shape: &mut [i32], ctx: TVMContext, dtype: TVMType) -> TVMResult<Self> {
         let mut empty = TVMArray::new(shape, ctx.clone(), dtype.clone());
-        let mut handle = &mut empty.raw as *mut tvm::TVMArray;
+        let mut handle = &mut empty.raw as tvm::TVMArrayHandle;
         // let out = &mut handle as *mut tvm::TVMArrayHandle;
         // let out: *mut tvm::TVMArrayHandle = unsafe { mem::transmute(&mut handle) };
         check_call!(tvm::TVMArrayAlloc(
