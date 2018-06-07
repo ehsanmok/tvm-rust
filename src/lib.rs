@@ -71,6 +71,7 @@ impl Error for TVMError {
 /// TVM result type
 pub type TVMResult<T> = ::std::result::Result<T, TVMError>;
 
+pub mod function;
 pub mod ndarray;
 
 /// Type of devices supported by TVM. Default is cpu.
