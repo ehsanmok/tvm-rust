@@ -1,21 +1,21 @@
 extern crate tvm_sys as tvm;
 
 use std::marker::PhantomData;
+use std::mem;
 use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
 use std::sync::Arc;
-use std::mem;
 
+pub use TVMArray;
 pub use TVMContext;
 pub use TVMError;
 pub use TVMResult;
 pub use TVMType;
-pub use TVMArray;
 
 pub struct NDArray {
     handle: tvm::TVMArrayHandle,
     pub is_view: bool,
-    pub dtype: TVMType
+    pub dtype: TVMType,
 }
 
 impl NDArray {
@@ -25,16 +25,16 @@ impl NDArray {
         let mut handle = &mut empty.raw as *mut tvm::TVMArray;
         // let out = &mut handle as *mut tvm::TVMArrayHandle;
         // let out: *mut tvm::TVMArrayHandle = unsafe { mem::transmute(&mut handle) };
-         check_call!(tvm::TVMArrayAlloc(
-             shape.as_ptr() as *const i64,
-             shape.len() as c_int,
-             dtype.inner.code as c_int,
-             dtype.inner.bits as c_int,
-             dtype.inner.lanes as c_int,
-             ctx.device_type.inner as c_int,
-             ctx.device_id,
-             &mut handle as *mut tvm::TVMArrayHandle,
-         ));
+        check_call!(tvm::TVMArrayAlloc(
+            shape.as_ptr() as *const i64,
+            shape.len() as c_int,
+            dtype.inner.code as c_int,
+            dtype.inner.bits as c_int,
+            dtype.inner.lanes as c_int,
+            ctx.device_type.inner as c_int,
+            ctx.device_id,
+            &mut handle as *mut tvm::TVMArrayHandle,
+        ));
         Ok(Self::new(handle, false, dtype))
     }
 

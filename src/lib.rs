@@ -59,7 +59,7 @@ impl Display for TVMError {
 }
 
 impl Error for TVMError {
-    fn description(&self) -> &str {
+    fn description(&self) -> &'static str {
         TVMError::last()
     }
 
@@ -264,11 +264,11 @@ impl From<TVMType> for tvm::DLDataType {
 }
 
 pub struct TVMArrayHandle {
-    handle: tvm::TVMArrayHandle
+    handle: tvm::TVMArrayHandle,
 }
 
 pub struct TVMArray {
-    raw: tvm::TVMArray
+    raw: tvm::TVMArray,
 }
 
 impl TVMArray {
