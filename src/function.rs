@@ -3,6 +3,9 @@ extern crate tvm_sys as tvm;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
+use TVMTypeCode;
+pub use TypeCode;
+
 #[derive(Debug, Clone)]
 pub struct Function {
     handle: tvm::TVMFunctionHandle, // *mut c_void
@@ -27,6 +30,12 @@ impl Default for Function {
     }
 }
 
+impl TVMTypeCode for Function {
+    fn type_code() -> TypeCode {
+        TypeCode { sys: tvm::TVMTypeCode::kFuncHandle }
+    }
+}
+
 impl Drop for Function {
     fn drop(&mut self) {
         check_call!(tvm::TVMFuncFree(self.handle));
@@ -34,7 +43,7 @@ impl Drop for Function {
 }
 
 pub fn get_global_func(
-    name: &'static str,
+    name: &str,
     is_resident: bool,
     allow_missing: bool,
 ) -> Option<Function> {

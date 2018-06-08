@@ -7,7 +7,7 @@
 // except according to those terms.
 #![crate_name = "tvm_rust"]
 #![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
-#![allow(non_camel_case_types, unused_imports, dead_code, unused_variables, unused_unsafe)]
+#![allow(non_camel_case_types, unused_imports, dead_code, unused_variables, unused_mut, unused_unsafe)]
 
 //! [WIP]
 //!
@@ -73,6 +73,15 @@ pub type TVMResult<T> = ::std::result::Result<T, TVMError>;
 
 pub mod function;
 pub mod ndarray;
+
+pub union TypeCode {
+    pub dl: tvm::DLDataTypeCode,
+    pub sys: tvm::TVMTypeCode,
+}
+
+trait TVMTypeCode: 'static {
+    fn type_code() -> TypeCode;
+}
 
 /// Type of devices supported by TVM. Default is cpu.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
@@ -273,7 +282,7 @@ pub struct TVMArray {
 }
 
 impl TVMArray {
-    fn new(shape: &mut [i32], ctx: TVMContext, dtype: TVMType) -> Self {
+    fn empty(shape: &mut Vec<i32>, ctx: TVMContext, dtype: TVMType) -> Self {
         let raw = tvm::TVMArray {
             data: ptr::null_mut() as *mut c_void,
             ctx: tvm::DLContext::from(ctx),
@@ -305,10 +314,10 @@ mod tests {
 
     #[test]
     fn array() {
-        let shape = &mut [1, 2];
+        let shape = &mut vec![1, 2];
         let ctx = TVMContext::cpu(0);
         let dtype = TVMType::from("float");
-        let empty = TVMArray::new(shape, ctx, dtype);
+        let empty = TVMArray::empty(shape, ctx, dtype);
         assert!(empty.raw.data.is_null());
         assert_eq!(empty.raw.ndim, shape.len() as i32);
     }
