@@ -17,7 +17,7 @@ use TVMTypeCode;
 pub struct NDArray {
     handle: tvm::TVMArrayHandle,
     pub is_view: bool,
-    pub dtype: TVMType,
+    pub dtype: TVMType, // TODO: remove
 }
 
 impl TVMTypeCode for NDArray {
@@ -35,12 +35,12 @@ impl NDArray {
         }
     }
 
-    pub fn empty(shape: &mut Vec<i32>, ctx: TVMContext, dtype: TVMType) -> TVMResult<Self> {
+    pub fn empty(shape: &mut Vec<i64>, ctx: TVMContext, dtype: TVMType) -> Self {
         let mut handle = ptr::null_mut() as tvm::TVMArrayHandle;
         let out = &mut handle as *mut tvm::TVMArrayHandle;
         check_call!(tvm::TVMArrayAlloc(
             shape.as_ptr() as *const i64,
-            1 as c_int, // ?
+            shape.len() as c_int,
             dtype.inner.code as c_int,
             dtype.inner.bits as c_int,
             dtype.inner.lanes as c_int,
@@ -48,8 +48,40 @@ impl NDArray {
             ctx.device_id as c_int,
             out,
         ));
-        Ok(Self::new(unsafe { *out }, false, dtype))
+        Self::new(unsafe { *out }, false, dtype)
     }
+
+    pub fn shape(&self) -> Option<Vec<i64>> {
+        let arr = unsafe { *(self.handle) };
+        if arr.shape.is_null() { return None };
+        let slice = unsafe { ::std::slice::from_raw_parts_mut(arr.shape, arr.ndim as usize) };
+        Some(slice.to_vec())
+    }
+
+    pub fn size(&self) -> Option<i64> {
+        self.shape().map(|v| v.into_iter().product())
+    }
+
+    pub fn context(&self) -> TVMContext {
+        // TODO: add from for DLContext with ints
+        unimplemented!()
+    }
+
+    pub fn copyfrom(&mut self, data: &mut Vec<f32>) {
+        // lane = 1
+        // NDArray, (layer blus's ndarray) and Vec
+        let handle = self.handle; // ensure is not null
+        let dptr = data.as_mut_ptr() as *mut c_void;
+        let nbytes = data.len() * mem::size_of::<f32>();
+        check_call!(tvm::TVMArrayCopyFromBytes(handle, dptr, nbytes));
+    }
+
+//    pub fn data(&self) -> Option<Vec<f32>> {
+//        let arr = unsafe { *(self.handle) };
+//        if arr.shape.is_null() { return None };
+//        let slice = unsafe { ::std::slice::from_raw_parts_mut(arr.data, arr.ndim as usize) };
+//        Some(slice.to_vec())
+//    }
 }
 
 impl Drop for NDArray {
@@ -64,10 +96,29 @@ mod tests {
 
     #[test]
     fn empty() {
-        let shape = &mut vec![1, 2];
+        let mut shape = vec![1, 2];
         let dtype = TVMType::from("float");
         let ctx = TVMContext::cpu(0);
-        let e = NDArray::empty(shape, ctx, dtype);
-        assert!(e.is_ok());
+        let e = NDArray::empty(&mut shape, ctx, dtype);
+        // assert!(e.is_ok());
+    }
+
+    #[test]
+    fn basics() {
+        let mut shape = vec![1, 2, 3];
+        let ndarray = NDArray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));
+        // let ndarray = NDArray::empty(&mut shape, TVMContext::gpu(0), TVMType::from("int"));
+        // let ndarray = NDArray::empty(&mut shape, TVMContext::opencl(0), TVMType::from("int"));
+        assert_eq!(ndarray.shape().unwrap(), shape);
+        assert_eq!(ndarray.size().unwrap(), shape.into_iter().product());
+    }
+
+    #[test]
+    fn copyfrom() {
+        let mut shape = vec![1];
+        let mut ndarray = NDArray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));
+        ndarray.copyfrom(&mut vec![1.0]);
+        // TODO
+        // assert_eq!(ndarray.data(), vec![1.0]);
     }
 }
