@@ -7,7 +7,7 @@
 // except according to those terms.
 #![crate_name = "tvm_rust"]
 #![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
-#![allow(non_camel_case_types, unused_imports, dead_code, unused_variables, unused_mut, unused_unsafe)]
+#![allow(non_camel_case_types, unused_imports, dead_code, unused_variables, unused_unsafe)]
 
 //! [WIP]
 //!
@@ -27,7 +27,6 @@ use std::os::raw::{c_int, c_void};
 use std::ptr;
 
 /// Macro to check the return call to TVM runtime shared library
-#[macro_export]
 macro_rules! check_call {
     ($e:expr) => {{
         if unsafe { $e } != 0 {
