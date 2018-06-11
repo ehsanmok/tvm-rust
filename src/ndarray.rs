@@ -27,27 +27,27 @@ impl TVMTypeCode for NDArray {
     }
 }
 
+pub fn empty(shape: &mut Vec<i64>, ctx: TVMContext, dtype: TVMType) -> NDArray {
+    let mut handle = ptr::null_mut() as tvm::TVMArrayHandle;
+    check_call!(tvm::TVMArrayAlloc(
+        shape.as_ptr() as *const i64,
+        shape.len() as c_int,
+        dtype.inner.code as c_int,
+        dtype.inner.bits as c_int,
+        dtype.inner.lanes as c_int,
+        ctx.device_type.inner as c_int,
+        ctx.device_id as c_int,
+        &mut handle as *mut _,
+    ));
+    NDArray::new(handle, false)
+}
+
 impl NDArray {
     fn new(handle: tvm::TVMArrayHandle, is_view: bool) -> Self {
         NDArray {
             handle: handle,
             is_view: is_view,
         }
-    }
-
-    pub fn empty(shape: &mut Vec<i64>, ctx: TVMContext, dtype: TVMType) -> Self {
-        let mut handle = ptr::null_mut() as tvm::TVMArrayHandle;
-        check_call!(tvm::TVMArrayAlloc(
-            shape.as_ptr() as *const i64,
-            shape.len() as c_int,
-            dtype.inner.code as c_int,
-            dtype.inner.bits as c_int,
-            dtype.inner.lanes as c_int,
-            ctx.device_type.inner as c_int,
-            ctx.device_id as c_int,
-            &mut handle as *mut _,
-        ));
-        Self::new(handle, false)
     }
 
     pub fn shape(&self) -> Option<Vec<i64>> {
@@ -91,7 +91,7 @@ mod tests {
     #[test]
     fn basics() {
         let mut shape = vec![1, 2, 3];
-        let ndarray = NDArray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));
+        let ndarray = empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));
         // let ndarray = NDArray::empty(&mut shape, TVMContext::gpu(0), TVMType::from("int"));
         // let ndarray = NDArray::empty(&mut shape, TVMContext::opencl(0), TVMType::from("int"));
         assert_eq!(ndarray.shape().unwrap(), shape);
@@ -101,7 +101,7 @@ mod tests {
     #[test]
     fn copyfrom() {
         let mut shape = vec![1];
-        let mut ndarray = NDArray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));
+        let mut ndarray = empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));
         ndarray.copyfrom(&mut vec![1.0]);
         // TODO
     }
