@@ -8,6 +8,7 @@
 #![crate_name = "tvm_rust"]
 #![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
 #![allow(non_camel_case_types, unused_imports, dead_code, unused_variables, unused_unsafe)]
+#![feature(try_from)]
 
 //! [WIP]
 //!
@@ -17,6 +18,7 @@
 
 extern crate libc;
 extern crate tvm_sys as tvm;
+extern crate ndarray as rndarray;
 
 use std::convert::From;
 use std::error::Error;
@@ -103,6 +105,12 @@ impl Default for TVMDeviceType {
 impl From<TVMDeviceType> for tvm::DLDeviceType {
     fn from(device_type: TVMDeviceType) -> Self {
         device_type.inner
+    }
+}
+
+impl From<tvm::DLDeviceType> for TVMDeviceType {
+    fn from(device_type: tvm::DLDeviceType) -> Self {
+        TVMDeviceType::new(device_type)
     }
 }
 
@@ -229,6 +237,15 @@ impl From<TVMContext> for tvm::DLContext {
     }
 }
 
+impl From<tvm::DLContext> for TVMContext {
+    fn from(ctx: tvm::DLContext) -> Self {
+        TVMContext {
+            device_type: ctx.device_type.into(),
+            device_id: ctx.device_id,
+        }
+    }
+}
+
 impl Display for TVMContext {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         // TODO: display DeviceType
@@ -236,7 +253,7 @@ impl Display for TVMContext {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct TVMType {
     inner: tvm::TVMType, // (type) code: u8, bits: u8, lanes: u16
 }
@@ -269,6 +286,12 @@ impl<'a> From<&'a str> for TVMType {
 impl From<TVMType> for tvm::DLDataType {
     fn from(dtype: TVMType) -> Self {
         dtype.inner
+    }
+}
+
+impl From<tvm::DLDataType> for TVMType {
+    fn from(dtype: tvm::DLDataType) -> Self {
+        Self::new(dtype.code, dtype.bits, dtype.lanes)
     }
 }
 

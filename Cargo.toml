@@ -21,6 +21,9 @@ crate-type = ["dylib"]
 [dependencies]
 libc = "0.2"
 tvm-sys = { version = "0.1.0", path = "tvm-sys" }
+ndarray = { version = "0.11.2", features = ["blas"] }
+blas-src = { version = "0.1.2", default-features = false, features = ["openblas"] }
+openblas-src = { version = "0.5.6", default-features = false, features = ["cblas", "system"] }
 
 [workspace]
 
