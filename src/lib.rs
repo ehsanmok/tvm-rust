@@ -8,7 +8,7 @@
 #![crate_name = "tvm_rust"]
 #![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
 #![allow(non_camel_case_types, unused_imports, dead_code, unused_variables, unused_unsafe)]
-#![feature(try_from)]
+#![feature(try_from, const_fn)]
 
 //! [WIP]
 //!
@@ -17,8 +17,8 @@
 //!
 
 extern crate libc;
-extern crate tvm_sys as tvm;
 extern crate ndarray as rndarray;
+extern crate tvm_sys as tvm;
 
 use std::convert::From;
 use std::error::Error;
@@ -27,6 +27,8 @@ use std::fmt;
 use std::fmt::{Display, Formatter};
 use std::os::raw::{c_int, c_void};
 use std::ptr;
+use std::result;
+use std::str;
 
 /// Macro to check the return call to TVM runtime shared library
 macro_rules! check_call {
@@ -70,9 +72,10 @@ impl Error for TVMError {
 }
 
 /// TVM result type
-pub type TVMResult<T> = ::std::result::Result<T, TVMError>;
+pub type TVMResult<T> = result::Result<T, TVMError>;
 
 pub mod function;
+pub mod module;
 pub mod ndarray;
 
 pub union TypeCode {
@@ -318,6 +321,10 @@ impl TVMArray {
     }
 }
 
+pub fn version() -> &'static str {
+    str::from_utf8(tvm::TVM_VERSION).unwrap()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -342,5 +349,10 @@ mod tests {
         let empty = TVMArray::empty(shape, ctx, dtype);
         assert!(empty.raw.data.is_null());
         assert_eq!(empty.raw.ndim, shape.len() as i32);
+    }
+
+    #[test]
+    fn print_version() {
+        println!("TVM version: {}", version());
     }
 }
