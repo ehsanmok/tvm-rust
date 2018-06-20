@@ -1,13 +1,14 @@
-extern crate tvm_sys as tvm;
-
 use std::ffi::CStr;
+use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
 use std::ptr;
 use std::slice;
 use std::str;
 
+use tvm;
+
 use TVMTypeCode;
-pub use TypeCode;
+use TypeCode;
 
 #[derive(Debug, Clone, Hash)]
 pub struct Function {
@@ -22,14 +23,21 @@ impl Function {
             is_global: is_global,
         }
     }
-}
 
-impl Default for Function {
-    fn default() -> Self {
-        Function {
-            handle: ptr::null_mut() as tvm::TVMFunctionHandle,
-            is_global: false,
-        }
+    pub fn get_function(name: &str) -> Option<Function> {
+        let name = name.to_owned();
+        list_global_func_names()
+            .into_iter()
+            .find(move |s| *s == name)
+            .map(|nm| get_global_func(&nm, false).unwrap())
+    }
+
+    pub fn as_handle(&self) -> tvm::TVMFunctionHandle {
+        self.handle
+    }
+
+    pub fn is_global(&self) -> bool {
+        self.is_global
     }
 }
 
@@ -44,14 +52,17 @@ impl TVMTypeCode for Function {
 impl Drop for Function {
     fn drop(&mut self) {
         check_call!(tvm::TVMFuncFree(self.handle));
+        mem::drop(self);
     }
 }
 
-pub fn get_global_func(name: &str, allow_missing: bool) -> Option<Function> {
+fn get_global_func(name: &str, allow_missing: bool) -> Option<Function> {
     let name = name.to_owned();
     let mut handle = ptr::null_mut() as tvm::TVMFunctionHandle;
-    let out = &mut handle as *mut tvm::TVMFunctionHandle;
-    check_call!(tvm::TVMFuncGetGlobal(name.as_ptr() as *const c_char, out));
+    check_call!(tvm::TVMFuncGetGlobal(
+        name.as_ptr() as *const c_char,
+        &mut handle as *mut _
+    ));
     if !(handle.is_null()) {
         return Some(Function::new(handle, false));
     } else {
@@ -63,13 +74,13 @@ pub fn get_global_func(name: &str, allow_missing: bool) -> Option<Function> {
     }
 }
 
-pub fn list_global_func_names() -> Vec<&'static str> {
+fn list_global_func_names() -> Vec<&'static str> {
     let mut out_size = 0 as c_int;
     let mut name = ptr::null() as *const c_char;
     let mut out_array = &mut name as *mut _;
     check_call!(tvm::TVMFuncListGlobalNames(
-        &mut out_size as *mut _,  // handle
-        &mut out_array as *mut _  // handle
+        &mut out_size as *mut _,
+        &mut out_array as *mut _
     ));
     let list = unsafe { slice::from_raw_parts(out_array, out_size as usize) };
     list.iter()
@@ -85,17 +96,23 @@ mod tests {
 
     #[test]
     fn global_func() {
-        let fname = "tvm.graph_runtime.create";
-        let func = get_global_func(fname, false);
-        // println!("{:?}", func);
-        assert!(func.is_some());
+        assert!(get_global_func("tvm.graph_runtime.create", false).is_some());
     }
 
     #[test]
     fn list_global_func() {
         let list = list_global_func_names();
         // println!("{:?}", list);
-        let fname = "tvm.graph_runtime.create";
-        assert!(list.iter().find(|&&s| s == fname).is_some());
+        assert!(
+            list.iter()
+                .find(|ref s| ***s == "tvm.graph_runtime.create")
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn get_fn() {
+        assert!(Function::get_function("tvm.graph_runtime.create").is_some());
+        assert!(Function::get_function("does not exists!").is_none());
     }
 }

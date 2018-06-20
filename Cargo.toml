@@ -28,7 +28,7 @@ openblas-src = { version = "0.5.6", default-features = false, features = ["cblas
 [workspace]
 
 [dev-dependencies]
-#clippy = { version = "0.0.205" }
+clippy = { version = "*" }
 
 [profile.release]
 debug = true
