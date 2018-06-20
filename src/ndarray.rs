@@ -22,7 +22,7 @@ use TypeCode;
 #[derive(Debug)]
 pub struct NDArray {
     handle: tvm::TVMArrayHandle,
-    pub is_view: bool,
+    is_view: bool,
 }
 
 impl TVMTypeCode for NDArray {
@@ -54,6 +54,14 @@ impl NDArray {
             handle: handle,
             is_view: is_view,
         }
+    }
+
+    pub fn as_handle(&self) -> tvm::TVMArrayHandle {
+        self.handle
+    }
+
+    pub fn is_view(&self) -> bool {
+        self.is_view
     }
 
     pub fn shape(&self) -> Option<Vec<usize>> {
