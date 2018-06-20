@@ -25,7 +25,7 @@ use std::error::Error;
 use std::ffi::{CStr, CString};
 use std::fmt;
 use std::fmt::{Display, Formatter};
-use std::os::raw::{c_int, c_void};
+use std::os::raw::{c_int, c_void, c_char};
 use std::ptr;
 use std::result;
 use std::str;
@@ -52,6 +52,10 @@ impl TVMError {
                 Err(_) => "Invalid UTF-8 message",
             }
         }
+    }
+
+    pub fn set_last(msg: &'static str) {
+        unsafe { tvm::TVMAPISetLastError(msg.as_ptr() as *const c_char); }
     }
 }
 
@@ -354,5 +358,12 @@ mod tests {
     #[test]
     fn print_version() {
         println!("TVM version: {}", version());
+    }
+
+    #[test]
+    fn error() {
+        let msg: &'static str = "Invalid";
+        TVMError::set_last(msg);
+        assert_eq!(TVMError::last().trim(), msg);
     }
 }

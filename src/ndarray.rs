@@ -9,6 +9,7 @@ use std::slice;
 use std::convert::TryFrom;
 
 use rndarray;
+use rndarray::ArrayD;
 
 use TVMArray;
 use TVMContext;
@@ -18,6 +19,7 @@ use TVMType;
 use TVMTypeCode;
 use TypeCode;
 
+#[derive(Debug)]
 pub struct NDArray {
     handle: tvm::TVMArrayHandle,
     pub is_view: bool,
@@ -31,7 +33,7 @@ impl TVMTypeCode for NDArray {
     }
 }
 
-pub fn empty(shape: &mut Vec<i64>, ctx: TVMContext, dtype: TVMType) -> NDArray {
+pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
     let mut handle = ptr::null_mut() as tvm::TVMArrayHandle;
     check_call!(tvm::TVMArrayAlloc(
         shape.as_ptr() as *const i64,
@@ -54,16 +56,16 @@ impl NDArray {
         }
     }
 
-    pub fn shape(&self) -> Option<Vec<i64>> {
+    pub fn shape(&self) -> Option<Vec<usize>> {
         let arr = unsafe { *(self.handle) };
         if arr.shape.is_null() || arr.data.is_null() {
             return None;
         };
-        let slc = unsafe { slice::from_raw_parts_mut(arr.shape, arr.ndim as usize) };
+        let slc = unsafe { slice::from_raw_parts_mut(arr.shape as *mut usize, arr.ndim as usize) };
         Some(slc.to_vec())
     }
 
-    pub fn size(&self) -> Option<i64> {
+    pub fn size(&self) -> Option<usize> {
         self.shape().map(|v| v.into_iter().product())
     }
 
@@ -81,7 +83,6 @@ impl NDArray {
         dldtype.into()
     }
 
-    // TODO: add to bluss's ndarray
     pub fn to_vec<T>(&self) -> TVMResult<Vec<T>> {
         if self.shape().is_none() {
             panic!("Cannot copy empty array to Vec");
@@ -110,20 +111,31 @@ impl NDArray {
         check_call!(tvm::TVMArrayCopyFromTo(self.handle, target.handle, ptr::null_mut() as *mut _));
         Ok(target)
     }
+
+    pub fn from_rndarray(rnd: &ArrayD<f32>, ctx: TVMContext, dtype: TVMType) -> TVMResult<Self> {
+        let mut shape = rnd.shape().to_vec();
+        let mut nd = empty(&mut shape, ctx, dtype);
+        let mut vec: Vec<f32> = rndarray::Array::from_iter(rnd.iter()).iter().map(|e| **e).collect();
+        nd.copyfrom(&mut vec);
+        Ok(nd)
+    }
 }
-
-// TODO: bluss's ndarray support
-//impl<'a> TryFrom<&'a NDArray> for rndarray::ArrayD<T> {
-//    type Error = TVMError;
-//    fn try_from(array: &NDArray) -> TVMResult<rndarray::ArrayD<T>> {
-//        unimplemented!()
-//    }
-//}
-
 
 impl Drop for NDArray {
     fn drop(&mut self) {
         check_call!(tvm::TVMArrayFree(self.handle));
+    }
+}
+
+impl<'a> TryFrom<&'a NDArray> for ArrayD<f32> {
+    type Error = TVMError;
+    fn try_from(array: &NDArray) -> TVMResult<ArrayD<f32>> {
+        if array.shape().is_none() {
+            panic!("Cannot convert from empty array");
+        }
+        // dtype
+        Ok(rndarray::Array::from_shape_vec(array.shape().unwrap().clone(),
+                                           array.to_vec::<f32>().unwrap()).unwrap())
     }
 }
 
@@ -149,5 +161,14 @@ mod tests {
         let mut ndarray = empty(&mut shape, ctx, TVMType::from("float"));
         ndarray.copyfrom(&mut data);
         assert_eq!(ndarray.to_vec::<f32>().unwrap(), data);
+    }
+
+    #[test]
+    fn bluss_ndarray() {
+        let a = rndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.]).unwrap().into_dyn();
+        let nd = NDArray::from_rndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+        let rnd = rndarray::ArrayD::try_from(&nd).unwrap();
+        assert!(rnd.all_close(&a, 1e-8f32));
+
     }
 }
