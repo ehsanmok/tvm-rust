@@ -187,6 +187,7 @@ pub type tvm_index_t = i64;
 /// \brief Extension device types in TVM
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TVMDeviceExtType {
+    kDLSDAccel = 6,
     kDLVulkan = 7,
     kOpenGL = 11,
     kExtDev = 12,
@@ -206,6 +207,7 @@ pub enum TVMTypeCode {
     kFuncHandle = 10,
     kStr = 11,
     kBytes = 12,
+    kNDArrayContainer = 13,
     kExtBegin = 15,
     kNNVMFirst = 16,
     kNNVMLast = 20,
@@ -225,6 +227,8 @@ pub type TVMType = DLDataType;
 pub type TVMContext = DLContext;
 /// \brief The tensor array stucture to TVM API.
 pub type TVMArray = DLTensor;
+/// \brief the array handle
+pub type TVMArrayHandle = *mut TVMArray;
 /// \brief Union type of values
 /// being passed through API and function calls.
 #[repr(C)]
@@ -252,8 +256,6 @@ pub type TVMModuleHandle = *mut ::std::os::raw::c_void;
 pub type TVMFunctionHandle = *mut ::std::os::raw::c_void;
 /// \brief Handle to hold return value.
 pub type TVMRetValueHandle = *mut ::std::os::raw::c_void;
-/// \brief the array handle
-pub type TVMArrayHandle = *mut TVMArray;
 /// \brief The stream that is specific to device
 /// can be NULL, which indicates the default one.
 pub type TVMStreamHandle = *mut ::std::os::raw::c_void;
