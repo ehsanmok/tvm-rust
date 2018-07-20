@@ -245,6 +245,21 @@ impl Debug for TVMValue {
     }
 }
 
+impl<'a> From<&'a TVMValue> for TypeCode {
+    fn from(value: &TVMValue) -> Self {
+        unsafe {
+            match value.inner {
+                tvm::TVMValue { v_int64: _ } => TypeCode::kDLInt,
+                tvm::TVMValue { v_float64: _ } => TypeCode::kDLFloat,
+                tvm::TVMValue { v_handle: _ } => TypeCode::kHandle,
+                tvm::TVMValue { v_str: _ } => TypeCode::kStr,
+                tvm::TVMValue { v_type: _ } => TypeCode::kTVMType,
+                tvm::TVMValue { v_ctx: _ } => TypeCode::kTVMContext,
+            }
+        }
+    }
+}
+
 /// Type of devices supported by TVM. Default is cpu.
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct TVMDeviceType {

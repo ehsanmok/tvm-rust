@@ -19,6 +19,7 @@ use TypeCode;
 pub struct Function {
     handle: tvm::TVMFunctionHandle, // *mut c_void
     is_global: bool,
+    args: Option<Vec<TVMArgValue>>,
 }
 
 impl Function {
@@ -26,6 +27,7 @@ impl Function {
         Function {
             handle: handle,
             is_global: is_global,
+            args: None,
         }
     }
 
@@ -43,6 +45,15 @@ impl Function {
 
     pub fn is_global(&self) -> bool {
         self.is_global
+    }
+
+    pub fn push_arg(&mut self, arg: &TVMValue) {
+        let tvm_arg = TVMArgValue::new(arg.clone(), TypeCode::from(arg));
+        if self.args.is_none() {
+            self.args = Some(vec![tvm_arg]);
+        } else {
+            self.args.as_mut().map(|v| v.push(tvm_arg));
+        }
     }
 }
 
