@@ -107,7 +107,7 @@ pub enum DLDeviceType {
 }
 /// \brief A Device context for Tensor and operator.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct DLContext {
     /// \brief The device type used in the device.
     pub device_type: DLDeviceType,
@@ -129,7 +129,7 @@ pub enum DLDataTypeCode {
 /// - float4(vectorized 4 float): type_code = 2, bits = 32, lanes=4
 /// - int8: type_code = 0, bits = 8, lanes=1
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct DLDataType {
     /// \brief Type code of base types.
     /// We keep it uint8_t instead of DLDataTypeCode for minimal memory
@@ -143,7 +143,7 @@ pub struct DLDataType {
 }
 /// \brief Plain C Tensor object, does not manage memory.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct DLTensor {
     /// \brief The opaque data pointer points to the allocated data.
     /// This will be CUDA device pointer or cl_mem handle in OpenCL.
@@ -169,7 +169,7 @@ pub struct DLTensor {
 /// the tensor, it should call the deleter to notify the host that the resource
 /// is no longer needed.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct DLManagedTensor {
     /// \brief DLTensor which is being memory managed
     pub dl_tensor: DLTensor,
@@ -245,7 +245,7 @@ pub union TVMValue {
 /// \brief Byte array type used to pass in byte array
 /// When kBytes is used as data type.
 #[repr(C)]
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash)]
 pub struct TVMByteArray {
     pub data: *const ::std::os::raw::c_char,
     pub size: usize,

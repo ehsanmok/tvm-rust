@@ -1,17 +1,16 @@
 extern crate tvm_sys as tvm;
 
+use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem;
 use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
-use std::sync::Arc;
 use std::slice;
-use std::convert::TryFrom;
+use std::sync::Arc;
 
 use rndarray;
 use rndarray::ArrayD;
 
-use TVMArray;
 use TVMContext;
 use TVMError;
 use TVMResult;
@@ -27,9 +26,7 @@ pub struct NDArray {
 
 impl TVMTypeCode for NDArray {
     fn type_code() -> TypeCode {
-        TypeCode {
-            sys: tvm::TVMTypeCode::kArrayHandle,
-        }
+        TypeCode::kArrayHandle
     }
 }
 
@@ -101,7 +98,8 @@ impl NDArray {
         let sz = self.size().unwrap() as usize;
         let mut v: Vec<T> = Vec::with_capacity(sz * mem::size_of::<T>());
         unsafe {
-            v.as_mut_ptr().copy_from_nonoverlapping(arr.data as *const T, sz);
+            v.as_mut_ptr()
+                .copy_from_nonoverlapping(arr.data as *const T, sz);
             v.set_len(sz);
         }
         Ok(v)
@@ -109,21 +107,32 @@ impl NDArray {
 
     pub fn copyfrom<T>(&mut self, data: &mut Vec<T>) {
         // lane = 1
-        check_call!(tvm::TVMArrayCopyFromBytes(self.handle, data.as_mut_ptr() as *mut _, data.len() * mem::size_of::<T>()));
+        check_call!(tvm::TVMArrayCopyFromBytes(
+            self.handle,
+            data.as_mut_ptr() as *mut _,
+            data.len() * mem::size_of::<T>()
+        ));
     }
 
     pub fn copyto(&self, target: NDArray) -> TVMResult<NDArray> {
         if self.shape().is_none() {
             panic!("Cannot copy empty array to {}", target.context());
         }
-        check_call!(tvm::TVMArrayCopyFromTo(self.handle, target.handle, ptr::null_mut() as *mut _));
+        check_call!(tvm::TVMArrayCopyFromTo(
+            self.handle,
+            target.handle,
+            ptr::null_mut() as *mut _
+        ));
         Ok(target)
     }
 
     pub fn from_rndarray(rnd: &ArrayD<f32>, ctx: TVMContext, dtype: TVMType) -> TVMResult<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
-        let mut vec: Vec<f32> = rndarray::Array::from_iter(rnd.iter()).iter().map(|e| **e).collect();
+        let mut vec: Vec<f32> = rndarray::Array::from_iter(rnd.iter())
+            .iter()
+            .map(|e| **e)
+            .collect();
         nd.copyfrom(&mut vec);
         Ok(nd)
     }
@@ -142,8 +151,10 @@ impl<'a> TryFrom<&'a NDArray> for ArrayD<f32> {
             panic!("Cannot convert from empty array");
         }
         // dtype
-        Ok(rndarray::Array::from_shape_vec(array.shape().unwrap().clone(),
-                                           array.to_vec::<f32>().unwrap()).unwrap())
+        Ok(rndarray::Array::from_shape_vec(
+            array.shape().unwrap().clone(),
+            array.to_vec::<f32>().unwrap(),
+        ).unwrap())
     }
 }
 
@@ -173,10 +184,11 @@ mod tests {
 
     #[test]
     fn bluss_ndarray() {
-        let a = rndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.]).unwrap().into_dyn();
+        let a = rndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
+            .unwrap()
+            .into_dyn();
         let nd = NDArray::from_rndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
         let rnd = rndarray::ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));
-
     }
 }

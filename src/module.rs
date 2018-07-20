@@ -21,7 +21,7 @@ pub struct Module {
 impl Module {
     pub fn entry_func(&mut self) -> Option<Function> {
         if self.entry.is_none() {
-            self.entry = Function::get_function(ENTRY_FUNC);
+            self.entry = Function::get_function(ENTRY_FUNC, false);
         }
         self.entry.take()
     }
@@ -65,15 +65,12 @@ impl Module {
 
 impl TVMTypeCode for Module {
     fn type_code() -> TypeCode {
-        TypeCode {
-            sys: tvm::TVMTypeCode::kModuleHandle,
-        }
+        TypeCode::kModuleHandle
     }
 }
 
 impl Drop for Module {
     fn drop(&mut self) {
         check_call!(tvm::TVMModFree(self.handle));
-        mem::drop(self);
     }
 }

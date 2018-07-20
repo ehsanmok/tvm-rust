@@ -7,8 +7,14 @@
 // except according to those terms.
 #![crate_name = "tvm_rust"]
 #![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
-#![allow(non_camel_case_types, unused_imports, dead_code, unused_variables, unused_unsafe)]
-#![feature(try_from, const_fn)]
+#![allow(
+    non_camel_case_types,
+    unused_imports,
+    dead_code,
+    unused_variables,
+    unused_unsafe
+)]
+#![feature(try_from, fn_traits, unboxed_closures, box_syntax)]
 
 //! [WIP]
 //!
@@ -16,16 +22,17 @@
 //! [TVM](https://github.com/dmlc/tvm) runtime.
 //!
 
-extern crate libc;
 extern crate ndarray as rndarray;
+extern crate ordered_float;
 extern crate tvm_sys as tvm;
 
 use std::convert::From;
 use std::error::Error;
 use std::ffi::{CStr, CString};
 use std::fmt;
-use std::fmt::{Display, Formatter};
-use std::os::raw::{c_int, c_void, c_char};
+use std::fmt::{Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
+use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 use std::result;
 use std::str;
@@ -55,7 +62,9 @@ impl TVMError {
     }
 
     pub fn set_last(msg: &'static str) {
-        unsafe { tvm::TVMAPISetLastError(msg.as_ptr() as *const c_char); }
+        unsafe {
+            tvm::TVMAPISetLastError(msg.as_ptr() as *const c_char);
+        }
     }
 }
 
@@ -75,20 +84,165 @@ impl Error for TVMError {
     }
 }
 
-/// TVM result type
-pub type TVMResult<T> = result::Result<T, TVMError>;
-
 pub mod function;
 pub mod module;
 pub mod ndarray;
 
-pub union TypeCode {
-    pub dl: tvm::DLDataTypeCode,
-    pub sys: tvm::TVMTypeCode,
+pub use function::Function;
+pub use module::Module;
+pub use ndarray::NDArray;
+
+type f32 = tvm::f32;
+type f64 = tvm::f64;
+
+/// TVM result type
+pub type TVMResult<T> = result::Result<T, TVMError>;
+
+#[repr(u32)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
+pub enum TypeCode {
+    kDLInt = 0,
+    kDLUInt = 1,
+    kDLFloat = 2,
+    kHandle = 3,
+    kNull = 4,
+    kTVMType = 5,
+    kTVMContext = 6,
+    kArrayHandle = 7,
+    kNodeHandle = 8,
+    kModuleHandle = 9,
+    kFuncHandle = 10,
+    kStr = 11,
+    kBytes = 12,
+    kExtBegin = 15,
+    kNNVMFirst = 16,
+    kNNVMLast = 20,
+    kExtReserveEnd = 64,
+    kExtEnd = 128,
 }
+
+macro_rules! impl_prim_type {
+    ($type:ty, $variant:ident) => {
+        impl<'a> From<&'a $type> for TypeCode {
+            fn from(arg: &$type) -> Self {
+                TypeCode::$variant
+            }
+        }
+    };
+}
+
+impl_prim_type!(i64, kDLInt);
+impl_prim_type!(i32, kDLInt);
+impl_prim_type!(i8, kDLInt);
+impl_prim_type!(u64, kDLUInt);
+impl_prim_type!(u32, kDLUInt);
+impl_prim_type!(u8, kDLUInt);
+impl_prim_type!(f64, kDLFloat);
+impl_prim_type!(f32, kDLFloat);
 
 trait TVMTypeCode: 'static {
     fn type_code() -> TypeCode;
+}
+
+#[derive(Clone)]
+pub struct TVMValue {
+    inner: tvm::TVMValue,
+}
+
+impl TVMValue {
+    fn new(inner: tvm::TVMValue) -> Self {
+        TVMValue { inner }
+    }
+}
+
+macro_rules! impl_prim_val {
+    ($type:ty, $field:ident, $as:ty) => {
+        impl<'a> From<&'a $type> for TVMValue {
+            fn from(arg: &$type) -> Self {
+                TVMValue {
+                    inner: tvm::TVMValue {
+                        $field: *arg as $as,
+                    },
+                }
+            }
+        }
+    };
+    ($type:ty,v_int64) => {
+        impl_prim_val!($type, v_int64, i64);
+    };
+    ($type:ty,v_float64) => {
+        impl_prim_val!($type, v_float64, f64);
+    };
+}
+
+impl_prim_val!(i64, v_int64);
+impl_prim_val!(i32, v_int64);
+impl_prim_val!(i8, v_int64);
+impl_prim_val!(u64, v_int64);
+impl_prim_val!(u32, v_int64);
+impl_prim_val!(u8, v_int64);
+impl_prim_val!(bool, v_int64);
+impl_prim_val!(f64, v_float64);
+// TODO: fix non-primitive cast for ordered_float
+// impl_prim_val!(f32, v_float64);
+
+impl<T> From<*mut T> for TVMValue {
+    fn from(arg: *mut T) -> Self {
+        TVMValue {
+            inner: tvm::TVMValue {
+                v_handle: arg as *mut c_void,
+            },
+        }
+    }
+}
+
+impl<T> From<*const T> for TVMValue {
+    fn from(arg: *const T) -> Self {
+        TVMValue {
+            inner: tvm::TVMValue {
+                v_handle: arg as *mut T as *mut c_void,
+            },
+        }
+    }
+}
+
+impl<'a> From<&'a mut tvm::TVMArray> for TVMValue {
+    fn from(arr: &'a mut tvm::TVMArray) -> Self {
+        TVMValue {
+            inner: tvm::TVMValue {
+                v_handle: arr as *mut _ as *mut c_void,
+            },
+        }
+    }
+}
+
+impl<'a> From<&'a tvm::TVMArray> for TVMValue {
+    fn from(arr: &'a tvm::TVMArray) -> Self {
+        TVMValue {
+            inner: tvm::TVMValue {
+                v_handle: arr as *const _ as *mut tvm::TVMArray as *mut c_void,
+            },
+        }
+    }
+}
+
+impl Hash for TVMValue {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        unsafe {
+            self.inner.v_int64.hash(state);
+            self.inner.v_float64.hash(state);
+            self.inner.v_handle.hash(state);
+            self.inner.v_str.hash(state);
+            self.inner.v_type.hash(state);
+            self.inner.v_ctx.hash(state);
+        }
+    }
+}
+
+impl Debug for TVMValue {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        unsafe { write!(f, "TVMValue") }
+    }
 }
 
 /// Type of devices supported by TVM. Default is cpu.
@@ -306,25 +460,6 @@ pub struct TVMArrayHandle {
     handle: tvm::TVMArrayHandle,
 }
 
-pub struct TVMArray {
-    raw: tvm::TVMArray,
-}
-
-impl TVMArray {
-    fn empty(shape: &mut Vec<i32>, ctx: TVMContext, dtype: TVMType) -> Self {
-        let raw = tvm::TVMArray {
-            data: ptr::null_mut() as *mut c_void,
-            ctx: tvm::DLContext::from(ctx),
-            ndim: shape.len() as c_int,
-            dtype: tvm::DLDataType::from(dtype),
-            shape: shape.as_mut_ptr() as *mut i64,
-            strides: ptr::null_mut() as *mut i64,
-            byte_offset: 0u64,
-        };
-        TVMArray { raw }
-    }
-}
-
 pub fn version() -> &'static str {
     str::from_utf8(tvm::TVM_VERSION).unwrap()
 }
@@ -343,16 +478,6 @@ mod tests {
         let str_ctx = TVMContext::new(TVMDeviceType::from("gpu"), 0);
         assert_eq!(str_ctx.current_context().clone(), str_ctx);
         assert_ne!(str_ctx, TVMContext::new(TVMDeviceType::from("cpu"), 0));
-    }
-
-    #[test]
-    fn array() {
-        let shape = &mut vec![1, 2];
-        let ctx = TVMContext::cpu(0);
-        let dtype = TVMType::from("float");
-        let empty = TVMArray::empty(shape, ctx, dtype);
-        assert!(empty.raw.data.is_null());
-        assert_eq!(empty.raw.ndim, shape.len() as i32);
     }
 
     #[test]
