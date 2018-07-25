@@ -4,9 +4,9 @@ version = "0.0.0"
 authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
 license = "Apache-2.0"
 
+build = "build.rs"
+links = "add_cpu"
+
 [dependencies]
 ndarray = "0.11.2"
 tvm-rust = { path = "../../" }
-
-[build-dependencies]
-ar = "0.6.0"

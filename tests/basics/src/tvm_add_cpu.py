@@ -14,7 +14,7 @@ def test_add(target_dir):
 
     fadd.save(os.path.join(target_dir, "add_cpu.o"))
     cc.create_shared(os.path.join(target_dir, "add_cpu.so"),
-            [os.path.join(target_dir, "add_cpu.o")])
+                     [os.path.join(target_dir, "add_cpu.o")])
 
 
 if __name__ == "__main__":

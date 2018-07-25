@@ -2,7 +2,7 @@ extern crate ndarray;
 extern crate tvm_rust as tvm;
 
 fn main() {
-//    let path = format!("dir/{}", "add_cpu");
+    // let path = "./add_cpu";
 //    let fadd = tvm::Module::load(&path, ".so");
 //    let ctx = tvm::TVMContext::cpu(0);
 //    let dtype = tvm::TVMType::from("float");
