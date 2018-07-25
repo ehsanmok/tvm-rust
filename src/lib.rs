@@ -27,6 +27,8 @@ extern crate ordered_float;
 extern crate tvm_sys as tvm;
 
 use std::convert::From;
+use std::collections::HashMap;
+use std::cell::RefCell;
 use std::error::Error;
 use std::ffi::{CStr, CString};
 use std::fmt;
@@ -139,8 +141,9 @@ impl_prim_type!(u32, kDLUInt);
 impl_prim_type!(u8, kDLUInt);
 impl_prim_type!(f64, kDLFloat);
 impl_prim_type!(f32, kDLFloat);
+impl_prim_type!(str, kStr);
 
-trait TVMTypeCode: 'static {
+trait TVMTypeCode {
     fn type_code() -> TypeCode;
 }
 
@@ -167,10 +170,10 @@ macro_rules! impl_prim_val {
             }
         }
     };
-    ($type:ty,v_int64) => {
+    ($type:ty, v_int64) => {
         impl_prim_val!($type, v_int64, i64);
     };
-    ($type:ty,v_float64) => {
+    ($type:ty, v_float64) => {
         impl_prim_val!($type, v_float64, f64);
     };
 }
@@ -185,6 +188,16 @@ impl_prim_val!(bool, v_int64);
 impl_prim_val!(f64, v_float64);
 // TODO: fix non-primitive cast for ordered_float
 // impl_prim_val!(f32, v_float64);
+
+impl<'a> From<&'a str> for TVMValue {
+    fn from(arg: &str) -> TVMValue {
+        TVMValue {
+            inner: tvm::TVMValue {
+                v_str: arg.as_ptr() as *const c_char
+            }
+        }
+    }
+}
 
 impl<T> From<*mut T> for TVMValue {
     fn from(arg: *mut T) -> Self {
@@ -226,6 +239,19 @@ impl<'a> From<&'a tvm::TVMArray> for TVMValue {
     }
 }
 
+impl<'a> From<&'a TVMContext> for TVMValue {
+    fn from(ctx: &TVMContext) -> Self {
+        TVMValue {
+            inner: tvm::TVMValue {
+                v_ctx: tvm::TVMContext {
+                    device_type: ctx.device_type.into(),
+                    device_id: ctx.device_id
+                }
+            }
+        }
+    }
+}
+
 impl Hash for TVMValue {
     fn hash<H: Hasher>(&self, state: &mut H) {
         unsafe {
@@ -241,22 +267,35 @@ impl Hash for TVMValue {
 
 impl Debug for TVMValue {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        unsafe { write!(f, "TVMValue") }
+        unsafe { write!(f, "TVMValue: [v_int64: {:?}], [v_float64: {:?}], [v_handle: {:?}],\
+                        [v_str: {:?}]", self.inner.v_int64, self.inner.v_float64,
+                        self.inner.v_handle, self.inner.v_str) }
     }
 }
 
-impl<'a> From<&'a TVMValue> for TypeCode {
-    fn from(value: &TVMValue) -> Self {
-        unsafe {
-            match value.inner {
-                tvm::TVMValue { v_int64: _ } => TypeCode::kDLInt,
-                tvm::TVMValue { v_float64: _ } => TypeCode::kDLFloat,
-                tvm::TVMValue { v_handle: _ } => TypeCode::kHandle,
-                tvm::TVMValue { v_str: _ } => TypeCode::kStr,
-                tvm::TVMValue { v_type: _ } => TypeCode::kTVMType,
-                tvm::TVMValue { v_ctx: _ } => TypeCode::kTVMContext,
-            }
-        }
+#[derive(Debug, Clone, Hash)]
+pub struct TVMArgValue {
+    value: TVMValue,
+    type_code: TypeCode,
+}
+
+pub type TVMRetValue = TVMArgValue;
+
+impl TVMArgValue {
+    pub fn new(value: TVMValue, type_code: TypeCode) -> Self {
+        TVMArgValue { value, type_code }
+    }
+}
+
+impl<'a> From<&'a TVMArgValue> for TVMValue {
+    fn from(arg: &TVMArgValue) -> Self {
+        arg.clone().value
+    }
+}
+
+impl<'a> From<&'a TVMArgValue> for TypeCode {
+    fn from(arg: &TVMArgValue) -> Self {
+        arg.clone().type_code
     }
 }
 
@@ -368,37 +407,12 @@ impl TVMContext {
 }
 
 impl TVMContext {
-    // TODO: impl with macro
-    pub fn exist(&self) -> TVMResult<Self> {
-        unimplemented!()
-    }
-
-    pub fn max_threads_per_block(&self) -> TVMResult<Self> {
-        unimplemented!()
-    }
-
-    pub fn warp_size(&self) -> TVMResult<Self> {
-        unimplemented!()
-    }
-
-    pub fn max_shared_memory_per_block(&self) -> TVMResult<Self> {
-        unimplemented!()
-    }
-
-    pub fn compute_version(&self) -> TVMResult<Self> {
-        unimplemented!()
-    }
-    // device_name
-    // max_clock_rate
-    // multi_processor_count
-}
-
-impl TVMContext {
     pub fn sync(&self) -> TVMResult<()> {
+        let handle = ptr::null_mut() as *mut c_void;
         check_call!(tvm::TVMSynchronize(
             self.device_type.inner as i32,
             self.device_id,
-            ptr::null_mut()
+            handle
         ));
         Ok(())
     }
@@ -498,6 +512,12 @@ mod tests {
     #[test]
     fn print_version() {
         println!("TVM version: {}", version());
+    }
+
+    #[test]
+    fn sync() {
+        let ctx = TVMContext::cpu(0);
+        assert!(ctx.sync().is_ok())
     }
 
     #[test]
