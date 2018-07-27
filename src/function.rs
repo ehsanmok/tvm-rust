@@ -9,14 +9,7 @@ use std::str;
 
 use tvm;
 
-use TVMError;
-use TVMResult;
-use TVMTypeCode;
-use TVMValue;
-use TypeCode;
-use TVMArgValue;
-use TVMRetValue;
-use TVMContext;
+use super::*;
 
 #[derive(Debug, Clone, Hash)]
 pub struct Function {
@@ -61,6 +54,12 @@ impl Function {
             self.args.as_mut().map(|v| v.push(tvm_arg));
         }
     }
+    // Ahh ... Ugly!!!
+    pub fn invoke(&self) -> TVMResult<TVMRetValue> {
+        let func = self.clone();
+        let args = &mut self.args.clone().unwrap();
+        Ok(func(args))
+    }
 }
 
 impl TVMTypeCode for Function {
@@ -69,23 +68,22 @@ impl TVMTypeCode for Function {
     }
 }
 
-impl FnOnce<((),)> for Function {
+impl<'a> FnOnce<((&'a mut Vec<TVMArgValue>),)> for Function {
     type Output = TVMRetValue;
-    extern "rust-call" fn call_once(self, _: ((), )) -> Self::Output {
+    extern "rust-call" fn call_once(self, args: ((&'a mut Vec<TVMArgValue>), )) -> Self::Output {
         let ret_val = ptr::null_mut() as *mut tvm::TVMValue; //tvm::TVMValue { v_int64: 0 };
         let ret_type_code = ptr::null_mut() as *mut c_int;
-        let mut args = self.args.clone().unwrap();
         check_call!(tvm::TVMFuncCall(
             self.handle,
-            args.as_mut_ptr() as *mut _,
-            args.as_mut_ptr() as *mut _,
-            args.len() as c_int,
+            args.0.as_mut_ptr() as *mut _,
+            args.0.as_mut_ptr() as *mut _,
+            args.0.len() as c_int,
             ret_val,
             ret_type_code
         ));
         let ret_type_code = unsafe { *ret_type_code };
         let ret_val = unsafe { *ret_val };
-        TVMRetValue::new(TVMValue::new(ret_val), TypeCode::from(&ret_type_code))
+        TVMRetValue::new(TVMValue::new(ValueKind::Unknown,ret_val), TypeCode::from(&ret_type_code))
     }
 }
 
@@ -130,53 +128,53 @@ fn list_global_func_names() -> Vec<&'static str> {
         .collect()
 }
 
-// TODO: make a Rust fn into callback
-#[derive(Debug, Clone)]
-pub struct PackedFunc {
-    inner: tvm::TVMPackedCFunc,
-    pub(crate) args: Option<Vec<TVMArgValue>>,
-
-}
-
-impl PackedFunc {
-    pub fn register(&self, name: &'static str, override_: bool) -> TVMResult<()> {
-        let name = name.to_owned();
-        let func = Function::from(self);
-        let override_ = if override_ { 1 } else { 0 };
-        check_call!(tvm::TVMFuncRegisterGlobal(
-            name.as_ptr() as *const c_char,
-            func.handle,
-            override_ as c_int,
-        ));
-        Ok(())
-    }
-
-    pub fn push_arg<'a, T: 'a + ?Sized>(&mut self, arg: &'a T)
-        where TVMValue: From<&'a T>,
-              TypeCode: From<&'a T>,
-    {
-        let tvm_arg = TVMArgValue::new(TVMValue::from(arg), TypeCode::from(arg));
-        if self.args.is_none() {
-            self.args = Some(vec![tvm_arg]);
-        } else {
-            self.args.as_mut().map(|v| v.push(tvm_arg));
-        }
-    }
-}
-
-impl<'a> From<&'a PackedFunc> for Function {
-    fn from(packed_func: &PackedFunc) -> Self {
-        let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
-        let resource_handle = ptr::null_mut() as *mut c_void;
-        check_call!(tvm::TVMFuncCreateFromCFunc(
-            packed_func.inner,
-            resource_handle,
-            None,
-            &mut fhandle as *mut _
-        ));
-        Self::new(fhandle, false, packed_func.clone().args)
-    }
-}
+//TODO: make a Rust fn into callback
+//#[derive(Debug, Clone)]
+//pub struct PackedFunc {
+//    inner: tvm::TVMPackedCFunc,
+//    pub(crate) args: Option<Vec<TVMArgValue>>,
+//
+//}
+//
+//impl PackedFunc {
+//    pub fn register(&self, name: &'static str, override_: bool) -> TVMResult<()> {
+//        let name = name.to_owned();
+//        let func = Function::from(self);
+//        let override_ = if override_ { 1 } else { 0 };
+//        check_call!(tvm::TVMFuncRegisterGlobal(
+//            name.as_ptr() as *const c_char,
+//            func.handle,
+//            override_ as c_int,
+//        ));
+//        Ok(())
+//    }
+//
+//    pub fn push_arg<'a, T: 'a + ?Sized>(&mut self, arg: &'a T)
+//        where TVMValue: From<&'a T>,
+//              TypeCode: From<&'a T>,
+//    {
+//        let tvm_arg = TVMArgValue::new(TVMValue::from(arg), TypeCode::from(arg));
+//        if self.args.is_none() {
+//            self.args = Some(vec![tvm_arg]);
+//        } else {
+//            self.args.as_mut().map(|v| v.push(tvm_arg));
+//        }
+//    }
+//}
+//
+//impl<'a> From<&'a PackedFunc> for Function {
+//    fn from(packed_func: &PackedFunc) -> Self {
+//        let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
+//        let resource_handle = ptr::null_mut() as *mut c_void;
+//        check_call!(tvm::TVMFuncCreateFromCFunc(
+//            packed_func.inner,
+//            resource_handle,
+//            None,
+//            &mut fhandle as *mut _
+//        ));
+//        Self::new(fhandle, false, packed_func.clone().args)
+//    }
+//}
 // TODO: fix the call
 //impl FnOnce<((),)> for PackedFunc {
 //    type Output = TVMRetValue;
@@ -213,30 +211,30 @@ mod tests {
         assert!(Function::get_function("does not exists!".to_owned(), false).is_none());
     }
 
-    #[test]
-    fn register_fn() {
-        unsafe extern "C" fn zero_fn(
-            args: *mut tvm::TVMValue,
-            type_codes: *mut ::std::os::raw::c_int,
-            num_args: ::std::os::raw::c_int,
-            ret: tvm::TVMRetValueHandle,
-            resource_handle: *mut ::std::os::raw::c_void,
-        ) -> ::std::os::raw::c_int {
-            0
-        }
-        let mut zero_packed: PackedFunc = PackedFunc {
-            inner: Some(zero_fn),
-            args: None,
-        };
-        let reg = zero_packed.register("zero_fn", false);
-        assert!(reg.is_ok());
-        let arg = TVMArgValue::new(TVMValue::from(&0i64), TypeCode::from(&0i64));
-        zero_packed.push_arg(&arg);
-        assert!(zero_packed.args.is_some());
-        // println!("{:?}", zero_packed);
-        // println!("{:?}", zero_packed(()));
-        // let ret = zero_packed(());
-        //println!("{:?}", ret.type_code);
-    }
+//    #[test]
+//    fn register_fn() {
+//        unsafe extern "C" fn zero_fn(
+//            args: *mut tvm::TVMValue,
+//            type_codes: *mut ::std::os::raw::c_int,
+//            num_args: ::std::os::raw::c_int,
+//            ret: tvm::TVMRetValueHandle,
+//            resource_handle: *mut ::std::os::raw::c_void,
+//        ) -> ::std::os::raw::c_int {
+//            0
+//        }
+//        let mut zero_packed: PackedFunc = PackedFunc {
+//            inner: Some(zero_fn),
+//            args: None,
+//        };
+//        let reg = zero_packed.register("zero_fn", false);
+//        assert!(reg.is_ok());
+//        let arg = TVMArgValue::new(TVMValue::from(&0i64), TypeCode::from(&0i64));
+//        zero_packed.push_arg(&arg);
+//        assert!(zero_packed.args.is_some());
+//        // println!("{:?}", zero_packed);
+//        // println!("{:?}", zero_packed(()));
+//        // let ret = zero_packed(());
+//        //println!("{:?}", ret.type_code);
+//    }
 
 }

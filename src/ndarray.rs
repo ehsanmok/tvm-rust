@@ -1,15 +1,14 @@
-extern crate tvm_sys as tvm;
-
 use std::convert::TryFrom;
 use std::marker::PhantomData;
 use std::mem;
 use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
 use std::slice;
-use std::sync::Arc;
 
-use rndarray;
-use rndarray::ArrayD;
+use rust_ndarray;
+use rust_ndarray::ArrayD;
+
+use tvm;
 
 use TVMContext;
 use TVMError;
@@ -126,10 +125,10 @@ impl NDArray {
         Ok(target)
     }
 
-    pub fn from_rndarray(rnd: &ArrayD<f32>, ctx: TVMContext, dtype: TVMType) -> TVMResult<Self> {
+    pub fn from_rust_ndarray(rnd: &ArrayD<f32>, ctx: TVMContext, dtype: TVMType) -> TVMResult<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
-        let mut vec: Vec<f32> = rndarray::Array::from_iter(rnd.iter())
+        let mut vec: Vec<f32> = rust_ndarray::Array::from_iter(rnd.iter())
             .iter()
             .map(|e| **e)
             .collect();
@@ -151,7 +150,7 @@ impl<'a> TryFrom<&'a NDArray> for ArrayD<f32> {
             panic!("Cannot convert from empty array");
         }
         // dtype
-        Ok(rndarray::Array::from_shape_vec(
+        Ok(rust_ndarray::Array::from_shape_vec(
             array.shape().unwrap().clone(),
             array.to_vec::<f32>().unwrap(),
         ).unwrap())
@@ -184,11 +183,11 @@ mod tests {
 
     #[test]
     fn bluss_ndarray() {
-        let a = rndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
+        let a = rust_ndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
             .unwrap()
             .into_dyn();
-        let nd = NDArray::from_rndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
-        let rnd = rndarray::ArrayD::try_from(&nd).unwrap();
+        let nd = NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+        let rnd = rust_ndarray::ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));
     }
 }

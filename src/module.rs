@@ -76,20 +76,22 @@ impl Module {
         check_call!(tvm::TVMModImport(self.handle, dependent_module.handle))
     }
 
-    pub fn load(path: &str, format: &str) -> TVMResult<Self> {
-//        let mut func = get_api("_LoadFromFile".to_owned());
-//        let file: &str = &format!("{}.{}", path, format);
-//        func.push_arg(file);
-//        Ok(func(()));
-        unimplemented!()
+    pub fn load(path: &str, format: &str) -> TVMResult<()> {
+        let mut func = get_api("_LoadFromFile".to_owned());
+        // let file: &str = &format!("{}.{}", path, format);
+        func.push_arg(path);
+        func.push_arg(format);
+        let ret = func.invoke().unwrap();
+        assert_eq!(ret.type_code, TypeCode::kModuleHandle);
+        Ok(ret.value)
+        // unimplemented!()
     }
 
     // TODO: change to bool
-    pub fn enabled(&self, target: &str) -> TVMRetValue {
-//        let mut func = get_api("_Enabled".to_owned());
-//        func.push_arg(target);
-//        func(());
-        unimplemented!()
+    pub fn enabled(&self, target: &str) -> TVMResult<TVMRetValue> {
+        let mut func = get_api("_Enabled".to_owned());
+        func.push_arg(target);
+        func.invoke()// .map(|ret| ret != 0)
     }
 
     pub fn as_handle(&self) -> tvm::TVMModuleHandle {
