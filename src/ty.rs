@@ -1,3 +1,5 @@
+use std::ops::{Deref, DerefMut};
+
 use super::*;
 
 #[repr(u32)]
@@ -16,11 +18,6 @@ pub enum TypeCode {
     kFuncHandle = 10,
     kStr = 11,
     kBytes = 12,
-    kExtBegin = 15,
-    kNNVMFirst = 16,
-    kNNVMLast = 20,
-    kExtReserveEnd = 64,
-    kExtEnd = 128,
 }
 
 macro_rules! impl_prim_type {
@@ -49,7 +46,7 @@ pub(crate) trait TVMTypeCode {
 
 #[derive(Debug, Copy, Clone)]
 pub struct TVMType {
-    pub(crate) inner: tvm::TVMType, // (type) code: u8, bits: u8, lanes: u16
+    pub inner: tvm::TVMType, // (type) code: u8, bits: u8, lanes: u16
 }
 
 impl TVMType {
@@ -77,6 +74,16 @@ impl<'a> From<&'a str> for TVMType {
     }
 }
 
+impl PartialEq for TVMType {
+    fn eq(&self, other: &TVMType) -> bool {
+        self.inner.code == other.inner.code
+            && self.inner.bits == other.inner.bits
+            && self.inner.lanes == other.inner.lanes
+    }
+}
+
+impl Eq for TVMType {}
+
 impl From<TVMType> for tvm::DLDataType {
     fn from(dtype: TVMType) -> Self {
         dtype.inner
@@ -86,5 +93,46 @@ impl From<TVMType> for tvm::DLDataType {
 impl From<tvm::DLDataType> for TVMType {
     fn from(dtype: tvm::DLDataType) -> Self {
         Self::new(dtype.code, dtype.bits, dtype.lanes)
+    }
+}
+
+impl Deref for TVMType {
+    type Target = tvm::TVMType;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+impl DerefMut for TVMType {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.inner
+    }
+}
+
+impl<'a, 'b> From<&'b TVMType> for &'a str {
+    fn from(ty: &TVMType) -> Self {
+        match **ty {
+            tvm::TVMType {
+                code: 0,
+                bits: 32,
+                lanes: 1,
+            } => "int",
+            tvm::TVMType {
+                code: 1,
+                bits: 32,
+                lanes: 1,
+            } => "uint",
+            tvm::TVMType {
+                code: 2,
+                bits: 32,
+                lanes: 1,
+            } => "float",
+            tvm::TVMType {
+                code: 4,
+                bits: 64,
+                lanes: 1,
+            } => "handle",
+            _ => panic!("Undefined type"),
+        }
     }
 }

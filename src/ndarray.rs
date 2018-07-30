@@ -10,12 +10,7 @@ use rust_ndarray::ArrayD;
 
 use tvm;
 
-use TVMContext;
-use TVMError;
-use TVMResult;
-use TVMType;
-use TVMTypeCode;
-use TypeCode;
+use super::*;
 
 #[derive(Debug)]
 pub struct NDArray {
@@ -103,7 +98,7 @@ impl NDArray {
         }
         Ok(v)
     }
-
+    // TODO: lane
     pub fn copyfrom<T>(&mut self, data: &mut Vec<T>) {
         // lane = 1
         check_call!(tvm::TVMArrayCopyFromBytes(
@@ -112,7 +107,7 @@ impl NDArray {
             data.len() * mem::size_of::<T>()
         ));
     }
-
+    // TODO: type check
     pub fn copyto(&self, target: NDArray) -> TVMResult<NDArray> {
         if self.shape().is_none() {
             panic!("Cannot copy empty array to {}", target.context());
@@ -125,7 +120,11 @@ impl NDArray {
         Ok(target)
     }
 
-    pub fn from_rust_ndarray(rnd: &ArrayD<f32>, ctx: TVMContext, dtype: TVMType) -> TVMResult<Self> {
+    pub fn from_rust_ndarray(
+        rnd: &ArrayD<f32>,
+        ctx: TVMContext,
+        dtype: TVMType,
+    ) -> TVMResult<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
         let mut vec: Vec<f32> = rust_ndarray::Array::from_iter(rnd.iter())
@@ -182,11 +181,12 @@ mod tests {
     }
 
     #[test]
-    fn bluss_ndarray() {
+    fn rust_ndarray() {
         let a = rust_ndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
             .unwrap()
             .into_dyn();
-        let nd = NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+        let nd =
+            NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
         let rnd = rust_ndarray::ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));
     }

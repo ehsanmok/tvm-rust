@@ -107,12 +107,45 @@ impl TVMContext {
 }
 
 impl TVMContext {
+    pub fn exist(&self) -> bool {
+        let func = get_api("_GetDeviceAttr".to_owned(), true);
+        let dt = self.device_type.inner as i32;
+        let ret = func
+            .push_arg(&dt)
+            .push_arg(&self.device_id)
+            .push_arg(&0)
+            .invoke();
+        ret.value != TVMValue::default()
+    }
+
+    pub fn max_thread_pre_block(&self) -> usize {
+        let func = get_api("_GetDeviceAttr".to_owned(), true);
+        let dt = self.device_type.inner as i32;
+        let ret = func
+            .push_arg(&dt)
+            .push_arg(&self.device_id)
+            .push_arg(&1)
+            .invoke();
+        unsafe { ret.value.inner.v_int64 as usize }
+    }
+
+    pub fn warp_size(&self) -> usize {
+        let func = get_api("_GetDeviceAttr".to_owned(), true);
+        let dt = self.device_type.inner as i32;
+        let ret = func
+            .push_arg(&dt)
+            .push_arg(&self.device_id)
+            .push_arg(&2)
+            .invoke();
+        unsafe { ret.value.inner.v_int64 as usize }
+    }
+
     pub fn sync(&self) -> TVMResult<()> {
-        let handle = ptr::null_mut() as *mut c_void;
+        //let handle = ptr::null_mut();
         check_call!(tvm::TVMSynchronize(
             self.device_type.inner as i32,
             self.device_id,
-            handle
+            ptr::null_mut() as *mut c_void
         ));
         Ok(())
     }
@@ -140,5 +173,36 @@ impl Display for TVMContext {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         // TODO: display DeviceType
         write!(f, "{:?} {}", self.device_type, self.device_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn context() {
+        let ctx = TVMContext::cpu(0);
+        let default_ctx = TVMContext::new(TVMDeviceType::new(tvm::DLDeviceType::kDLCPU), 0);
+        assert_eq!(ctx.current_context().clone(), default_ctx);
+        assert_ne!(ctx, TVMContext::gpu(0));
+
+        let str_ctx = TVMContext::new(TVMDeviceType::from("gpu"), 0);
+        assert_eq!(str_ctx.current_context().clone(), str_ctx);
+        assert_ne!(str_ctx, TVMContext::new(TVMDeviceType::from("cpu"), 0));
+    }
+
+    #[test]
+    fn sync() {
+        let ctx = TVMContext::cpu(0);
+        assert!(ctx.sync().is_ok())
+    }
+
+    #[test]
+    fn dev_attribute() {
+        let ctx = TVMContext::cpu(0);
+        assert!(ctx.exist());
+        println!("max thread per block: {}", ctx.max_thread_pre_block());
+        println!("warp size: {}", ctx.warp_size());
     }
 }
