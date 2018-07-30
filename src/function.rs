@@ -171,83 +171,6 @@ fn list_global_func_names() -> Vec<&'static str> {
         .collect()
 }
 
-//TODO: make a Rust fn into callback
-// #[derive(Debug, Clone)]
-// pub struct PackedFunc<'a> {
-//     inner: Box<tvm::TVMPackedCFunc>,
-//     pub(crate) arg_buf: Option<Box<[TVMArgValue<'a>]>>,
-// }
-
-// impl<'a> PackedFunc<'a> {
-//     pub fn register(&self, name: &'static str, override_: bool) -> TVMResult<()> {
-//         let name = name.to_owned();
-//         let func = Function::from(self);
-//         let override_ = if override_ { 1 } else { 0 };
-//         check_call!(tvm::TVMFuncRegisterGlobal(
-//             name.as_ptr() as *const c_char,
-//             func.handle,
-//             override_ as c_int,
-//         ));
-//         Ok(())
-//     }
-
-//     pub fn push_arg<'b: 'a, T: 'b + ?Sized>(mut self, arg: &'b T) -> Self
-//     where
-//         TVMValue: From<&'b T>,
-//         TypeCode: From<&'b T>,
-//     {
-//         let tvm_arg = TVMArgValue::new(TVMValue::from(arg), TypeCode::from(arg));
-//         //println!("{:?}", tvm_arg);
-//         if self.arg_buf.is_none() {
-//             self.arg_buf = Some(Box::new([tvm_arg]));
-//             return self;
-//         } else {
-//             let new_arg_buf = self.arg_buf.take().map(|bbuf| {
-//                 let mut new_buf = Vec::with_capacity(bbuf.len() + 1);
-//                 let tmp = Vec::from(bbuf);
-//                 for elt in tmp {
-//                     new_buf.push(elt);
-//                 }
-//                 new_buf.push(tvm_arg);
-//                 //println!("{:?}", new_buf);
-//                 new_buf.into_boxed_slice()
-//             });
-//             Self::new(
-//                 self.handle.clone(),
-//                 self.is_global,
-//                 self.is_released,
-//                 new_arg_buf,
-//             )
-//         }
-//     }
-// }
-
-// impl<'a, 'b, 'c> From<&'b PackedFunc<'c>> for Function<'a> {
-//     fn from(packed_func: &PackedFunc) -> Self {
-//         let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
-//         let resource_handle = ptr::null_mut() as *mut c_void;
-//         check_call!(tvm::TVMFuncCreateFromCFunc(
-//             packed_func.inner,
-//             resource_handle,
-//             None,
-//             &mut fhandle as *mut _
-//         ));
-//         Self::new(fhandle, false, packed_func.clone().arg_buf)
-//     }
-// }
-
-// // TODO: fix the call
-// impl<'a> FnOnce<((),)> for PackedFunc<'a> {
-//     type Output = TVMRetValue<'a>;
-//     extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
-//         let func = Function::from(&self);
-//         if func.arg_buf.is_none() {
-//             panic!("Cannot call function with empty argument")
-//         }
-//         func(())
-//     }
-// }
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -287,31 +210,4 @@ mod tests {
         assert!(func.arg_buf.is_some());
         assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(2));
     }
-
-    //    #[test]
-    //    fn register_fn() {
-    //        unsafe extern "C" fn zero_fn(
-    //            arg_buf: *mut tvm::TVMValue,
-    //            type_codes: *mut ::std::os::raw::c_int,
-    //            num_arg_buf: ::std::os::raw::c_int,
-    //            ret: tvm::TVMRetValueHandle,
-    //            resource_handle: *mut ::std::os::raw::c_void,
-    //        ) -> ::std::os::raw::c_int {
-    //            0
-    //        }
-    //        let mut zero_packed: PackedFunc = PackedFunc {
-    //            inner: Some(zero_fn),
-    //            arg_buf: None,
-    //        };
-    //        let reg = zero_packed.register("zero_fn", false);
-    //        assert!(reg.is_ok());
-    //        let arg = TVMArgValue::new(TVMValue::from(&0i64), TypeCode::from(&0i64));
-    //        zero_packed.push_arg(&arg);
-    //        assert!(zero_packed.arg_buf.is_some());
-    //        // println!("{:?}", zero_packed);
-    //        // println!("{:?}", zero_packed(()));
-    //        // let ret = zero_packed(());
-    //        //println!("{:?}", ret.type_code);
-    //    }
-
 }

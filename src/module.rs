@@ -86,18 +86,3 @@ impl<'a> Drop for Module<'a> {
         check_call!(tvm::TVMModFree(self.handle));
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    // #[test]
-    // fn enabled() {
-    //     let m = Module {
-    //         handle: ptr::null_mut() as *mut c_void,
-    //         is_global: false,
-    //         entry: None,
-    //     };
-    //     println!("{:?}", m.enabled("cpu"));
-    // }
-}
