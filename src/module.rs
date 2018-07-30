@@ -1,27 +1,26 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::mem;
-use std::os::raw::{c_char, c_int};
+use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 
 use tvm;
 
-use function::Function;
-use TVMResult;
-use TVMTypeCode;
-use TypeCode;
+use super::*;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 
-#[derive(Debug)]
-pub struct Module {
+#[derive(Debug, Clone)]
+pub struct Module<'a> {
     handle: tvm::TVMModuleHandle,
     is_global: bool,
-    entry: Option<Function>,
+    entry: Option<Function<'a>>,
 }
 
-impl Module {
+impl<'a> Module<'a> {
     pub fn entry_func(&mut self) -> Option<Function> {
         if self.entry.is_none() {
-            self.entry = Function::get_function(ENTRY_FUNC);
+            self.entry = Function::get_function(ENTRY_FUNC.to_owned(), false, false);
         }
         self.entry.take()
     }
@@ -38,7 +37,7 @@ impl Module {
         if handle.is_null() {
             panic!("Module has no function {}", name);
         } else {
-            Ok(Function::new(handle, false))
+            Ok(Function::new(Box::new(handle), false, false, None))
         }
     }
 
@@ -46,11 +45,20 @@ impl Module {
         check_call!(tvm::TVMModImport(self.handle, dependent_module.handle))
     }
 
-    pub fn load(file_name: &str, format: &str) -> Module {
+    pub fn load(path: &str, format: &str) -> TVMResult<()> {
+        // let mut func = get_api("_LoadFromFile".to_owned());
+        // func.push_arg(path);
+        // func.push_arg(format);
+        // let ret = func.invoke();
+        // assert_eq!(ret.type_code, TypeCode::kModuleHandle);
+        // Ok(())
         unimplemented!()
     }
 
-    pub fn enabled(target: &str) -> bool {
+    pub fn enabled(&self, target: &str) -> bool {
+        // let mut func = get_api("_Enabled".to_owned());
+        // func.push_arg(target);
+        // func.invoke().value != TVMValue::default()
         unimplemented!()
     }
 
@@ -61,19 +69,35 @@ impl Module {
     pub fn is_global(&self) -> bool {
         self.is_global
     }
-}
 
-impl TVMTypeCode for Module {
-    fn type_code() -> TypeCode {
-        TypeCode {
-            sys: tvm::TVMTypeCode::kModuleHandle,
-        }
+    pub fn as_module(&self) -> Self {
+        self.clone()
     }
 }
 
-impl Drop for Module {
+// impl TVMTypeCode for Module {
+//     fn type_code() -> TypeCode {
+//         TypeCode::kModuleHandle
+//     }
+// }
+
+impl<'a> Drop for Module<'a> {
     fn drop(&mut self) {
         check_call!(tvm::TVMModFree(self.handle));
-        mem::drop(self);
     }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    // #[test]
+    // fn enabled() {
+    //     let m = Module {
+    //         handle: ptr::null_mut() as *mut c_void,
+    //         is_global: false,
+    //         entry: None,
+    //     };
+    //     println!("{:?}", m.enabled("cpu"));
+    // }
 }
