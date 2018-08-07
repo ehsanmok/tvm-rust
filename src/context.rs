@@ -107,38 +107,38 @@ impl TVMContext {
 }
 
 impl TVMContext {
-    pub fn exist(&self) -> bool {
-        let func = get_api("_GetDeviceAttr".to_owned(), true);
-        let dt = self.device_type.inner as i32;
-        let ret = func
-            .push_arg(&dt)
-            .push_arg(&self.device_id)
-            .push_arg(&0)
-            .invoke();
-        ret.value != TVMValue::default()
-    }
+    // pub fn exist(&self) -> bool {
+    //     let func = get_api("_GetDeviceAttr".to_owned(), true);
+    //     let dt = self.device_type.inner as i32;
+    //     let ret = func
+    //         .push_arg(&dt)
+    //         .push_arg(&self.device_id)
+    //         .push_arg(&0)
+    //         .invoke();
+    //     ret.value != TVMValue::default()
+    // }
 
-    pub fn max_thread_pre_block(&self) -> usize {
-        let func = get_api("_GetDeviceAttr".to_owned(), true);
-        let dt = self.device_type.inner as i32;
-        let ret = func
-            .push_arg(&dt)
-            .push_arg(&self.device_id)
-            .push_arg(&1)
-            .invoke();
-        unsafe { ret.value.inner.v_int64 as usize }
-    }
+    // pub fn max_thread_pre_block(&self) -> usize {
+    //     let func = get_api("_GetDeviceAttr".to_owned(), true);
+    //     let dt = self.device_type.inner as i32;
+    //     let ret = func
+    //         .push_arg(&dt)
+    //         .push_arg(&self.device_id)
+    //         .push_arg(&1)
+    //         .invoke();
+    //     unsafe { ret.value.inner.v_int64 as usize }
+    // }
 
-    pub fn warp_size(&self) -> usize {
-        let func = get_api("_GetDeviceAttr".to_owned(), true);
-        let dt = self.device_type.inner as i32;
-        let ret = func
-            .push_arg(&dt)
-            .push_arg(&self.device_id)
-            .push_arg(&2)
-            .invoke();
-        unsafe { ret.value.inner.v_int64 as usize }
-    }
+    // pub fn warp_size(&self) -> usize {
+    //     let func = get_api("_GetDeviceAttr".to_owned(), true);
+    //     let dt = self.device_type.inner as i32;
+    //     let ret = func
+    //         .push_arg(&dt)
+    //         .push_arg(&self.device_id)
+    //         .push_arg(&2)
+    //         .invoke();
+    //     unsafe { ret.value.inner.v_int64 as usize }
+    // }
 
     pub fn sync(&self) -> TVMResult<()> {
         //let handle = ptr::null_mut();
@@ -198,11 +198,11 @@ mod tests {
         assert!(ctx.sync().is_ok())
     }
 
-    #[test]
-    fn dev_attribute() {
-        let ctx = TVMContext::cpu(0);
-        assert!(ctx.exist());
-        println!("max thread per block: {}", ctx.max_thread_pre_block());
-        println!("warp size: {}", ctx.warp_size());
-    }
+    // #[test]
+    // fn dev_attribute() {
+    //     let ctx = TVMContext::cpu(0);
+    //     assert!(ctx.exist());
+    //     println!("max thread per block: {}", ctx.max_thread_pre_block());
+    //     println!("warp size: {}", ctx.warp_size());
+    // }
 }

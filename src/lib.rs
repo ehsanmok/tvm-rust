@@ -96,8 +96,8 @@ pub mod value;
 
 pub use context::*;
 pub use function::Function;
-use internal_api::get_api;
-pub use module::Module;
+//use internal_api::get_api;
+//pub use module::Module;
 pub use ndarray::{empty, NDArray};
 pub use ty::*;
 pub use value::*;
