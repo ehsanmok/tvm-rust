@@ -24,6 +24,8 @@
 extern crate ndarray as rust_ndarray;
 extern crate ordered_float;
 extern crate tvm_sys as tvm;
+#[macro_use]
+extern crate lazy_static;
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -96,8 +98,7 @@ pub mod value;
 
 pub use context::*;
 pub use function::Function;
-//use internal_api::get_api;
-//pub use module::Module;
+pub use module::Module;
 pub use ndarray::{empty, NDArray};
 pub use ty::*;
 pub use value::*;

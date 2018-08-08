@@ -39,6 +39,11 @@ impl_prim_type!(u8, kDLUInt);
 impl_prim_type!(tvm::f64, kDLFloat);
 impl_prim_type!(tvm::f32, kDLFloat);
 impl_prim_type!(str, kStr);
+impl_prim_type!(String, kStr);
+impl_prim_type!(TVMContext, kTVMContext);
+impl_prim_type!(TVMType, kTVMType);
+impl_prim_type!(Function, kFuncHandle);
+impl_prim_type!(Module, kModuleHandle);
 
 pub(crate) trait TVMTypeCode {
     fn type_code() -> TypeCode;

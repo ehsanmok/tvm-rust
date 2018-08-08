@@ -1,9 +1,14 @@
 extern crate ndarray;
 extern crate tvm_rust as tvm;
 
+use std::process::Command;
+
 fn main() {
-    // let path = "./add_cpu";
-//    let fadd = tvm::Module::load(&path, ".so");
+    let path = "./target/debug/build/basics-8abaf8453fcc708c/out/add_cpu";
+    let fmt = "so";
+    //let test = Command::new("ls").arg("./target/debug/build/basics-8abaf8453fcc708c/out/").output().unwrap();
+    //println!("{:?}",test);
+    let _fadd = tvm::Module::load(&path, &fmt);
 //    let ctx = tvm::TVMContext::cpu(0);
 //    let dtype = tvm::TVMType::from("float");
 //    let mut shape = vec![1, 2];

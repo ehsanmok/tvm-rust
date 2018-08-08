@@ -101,8 +101,27 @@ impl<T> From<*const T> for TVMValue {
     }
 }
 
+impl<'a> From<&'a mut Module> for TVMValue {
+    fn from(arg: &mut Module) -> Self {
+        let inner = tvm::TVMValue {
+            v_handle: arg as *mut _ as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
+
+impl<'a> From<&'a mut Function> for TVMValue {
+    fn from(arg: &mut Function) -> Self {
+        let inner = tvm::TVMValue {
+            v_handle: arg as *mut _ as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
+
+
 impl<'a> From<&'a mut tvm::TVMArray> for TVMValue {
-    fn from(arr: &'a mut tvm::TVMArray) -> Self {
+    fn from(arr: &mut tvm::TVMArray) -> Self {
         let inner = tvm::TVMValue {
             v_handle: arr as *mut _ as *mut c_void,
         };
@@ -111,7 +130,7 @@ impl<'a> From<&'a mut tvm::TVMArray> for TVMValue {
 }
 
 impl<'a> From<&'a tvm::TVMArray> for TVMValue {
-    fn from(arr: &'a tvm::TVMArray) -> Self {
+    fn from(arr: &tvm::TVMArray) -> Self {
         let inner = tvm::TVMValue {
             v_handle: arr as *const _ as *mut tvm::TVMArray as *mut c_void,
         };
