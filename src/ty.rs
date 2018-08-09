@@ -1,4 +1,5 @@
 use std::ops::{Deref, DerefMut};
+use std::ffi::OsString;
 
 use super::*;
 
@@ -40,10 +41,12 @@ impl_prim_type!(tvm::f64, kDLFloat);
 impl_prim_type!(tvm::f32, kDLFloat);
 impl_prim_type!(str, kStr);
 impl_prim_type!(String, kStr);
+impl_prim_type!(OsString, kStr);
 impl_prim_type!(TVMContext, kTVMContext);
 impl_prim_type!(TVMType, kTVMType);
 impl_prim_type!(Function, kFuncHandle);
 impl_prim_type!(Module, kModuleHandle);
+impl_prim_type!(NDArray, kArrayHandle);
 
 pub(crate) trait TVMTypeCode {
     fn type_code() -> TypeCode;

@@ -1,21 +1,27 @@
+#![allow(unused_variables, unused_mut)]
+
 extern crate ndarray;
 extern crate tvm_rust as tvm;
 
-use std::process::Command;
+use std::path::Path;
 
 fn main() {
-    let path = "./target/debug/build/basics-8abaf8453fcc708c/out/add_cpu";
-    let fmt = "so";
-    //let test = Command::new("ls").arg("./target/debug/build/basics-8abaf8453fcc708c/out/").output().unwrap();
-    //println!("{:?}",test);
-    let _fadd = tvm::Module::load(&path, &fmt);
-//    let ctx = tvm::TVMContext::cpu(0);
-//    let dtype = tvm::TVMType::from("float");
-//    let mut shape = vec![1, 2];
-//    let arr = tvm::ndarray::empty(&mut shape, ctx, dtype);
-//    arr.copyfrom(&mut vec![3f64, 4f64]);
-//    let ret = tvm::ndarray::empty(&mut shape, ctx, arr.dtype());
-//    fadd::entry_func().unwrap().push_arg(arr).push_arg(arr).push_arg(ret);
-//    fadd(());
+    let path = Path::new("add_cpu.so");
+    let mut fadd = tvm::Module::load(path).unwrap();
+    let ctx = tvm::TVMContext::cpu(0);
+    let dtype = tvm::TVMType::from("float");
+    let mut shape = vec![1, 2];
+    let mut arr = tvm::ndarray::empty(&mut shape, ctx.clone(), dtype);
+    arr.copyfrom(&mut vec![3f32, 4.]);
+    let mut ret = tvm::ndarray::empty(&mut shape, ctx, arr.dtype());
+    fadd = fadd.entry_func();
+    let f = tvm::function::Builder::from(&mut fadd)
+        .push_arg(&arr)
+        .push_arg(&arr)
+        .accept_ret(&mut ret).invoke().unwrap();
+    println!("{:?}", f);
+//        .invoke()
+//        .unwrap();
+    //println!("{:?}", ret);
 //    assert_eq!(ret, vec![6f64, 8f64]);
 }

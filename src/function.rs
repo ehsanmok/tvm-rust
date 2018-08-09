@@ -58,11 +58,14 @@ fn get_global_func(name: &'static str, is_global: bool, allow_missing: bool) -> 
 pub struct Builder<'a> {
     func: Option<Function>,
     arg_buf: Option<Box<[TVMArgValue<'a>]>>,
+    ret_buf: Option<Box<[TVMRetValue<'a>]>>,
 }
 
 impl<'a> Builder<'a> {
-    pub fn new(func: Option<Function>, arg_buf: Option<Box<[TVMArgValue<'a>]>>) -> Self {
-        Self { func, arg_buf }
+    pub fn new(func: Option<Function>,
+               arg_buf: Option<Box<[TVMArgValue<'a>]>>,
+               ret_buf: Option<Box<[TVMRetValue<'a>]>>) -> Self {
+        Self { func, arg_buf, ret_buf }
     }
 
     pub fn get_function(mut self, name: String, is_global: bool, allow_missing: bool) -> Self {
@@ -89,13 +92,36 @@ impl<'a> Builder<'a> {
                 new_buf.push(tvm_arg);
                 new_buf.into_boxed_slice()
             });
-            Self::new(self.func, new_arg_buf)
+            Self::new(self.func, new_arg_buf, self.ret_buf)
         }
     }
 
-     pub fn invoke(self) -> TVMResult<TVMRetValue<'a>> {
-         self(())
-     }
+    pub fn accept_ret<'b, T: 'b + ?Sized>(mut self, arg: &'b T) -> Self
+    where
+        TVMValue: From<&'b T>,
+        TypeCode: From<&'b T>,
+    {
+        let tvm_arg = TVMRetValue::new(TVMValue::from(arg), TypeCode::from(arg));
+        if self.ret_buf.is_none() {
+            self.ret_buf = Some(Box::new([tvm_arg]));
+            return self;
+        } else {
+            let new_arg_buf = self.ret_buf.take().map(|bbuf| {
+                let mut new_buf = Vec::with_capacity(1);
+                let tmp = Vec::from(bbuf);
+                for elt in tmp {
+                    new_buf.push(elt);
+                }
+                new_buf.push(tvm_arg);
+                new_buf.into_boxed_slice()
+            });
+            Self::new(self.func, self.arg_buf, new_arg_buf)
+        }
+    }
+
+    pub fn invoke(self) -> TVMResult<TVMRetValue<'a>> {
+     self(())
+    }
 }
 
 impl<'a> FnOnce<((),)> for Builder<'a> {
@@ -104,8 +130,13 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
      if self.func.is_none() { panic!("Function handle is None") }
      let mut ret_val = tvm::TVMValue { v_int64: 0 };
      let mut ret_type_code = 0;
+     if self.ret_buf.is_some() {
+         ret_val = *self.ret_buf.clone().unwrap()[0].value;
+         ret_type_code = self.ret_buf.clone().unwrap()[0].type_code as c_int;
+     }
      let arg_buf = self.arg_buf.clone().unwrap();
-     let num_args = arg_buf.len();
+     let ret_buf = self.ret_buf.clone().unwrap();
+     let num_args = arg_buf.len() + ret_buf.len();
      let mut values = arg_buf
          .iter()
          .map(|tav| tav.clone().value.inner)
@@ -117,8 +148,8 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
          .map(|tav| tav.clone().type_code as c_int)
          .collect::<Vec<_>>();
      tcodes.truncate(num_args);
-     //println!("tcodes: {:?}", tcodes);
-     println!("func handle: {:?}", self.func.clone().unwrap().handle);
+     println!("tcodes: {:?}", tcodes);
+     //println!("func handle: {:?}", self.func.clone().unwrap().handle);
      println!("num args: {}", num_args);
      check_call!(tvm::TVMFuncCall(
          self.func.unwrap().handle,
@@ -139,16 +170,29 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
 
 impl<'a> From<Function> for Builder<'a> {
     fn from(func: Function) -> Self {
-        Self::new(Some(func), None)
+        Builder::new(Some(func), None, None)
     }
 }
+
+impl<'a: 'b, 'b> From<&'b mut Module> for Builder<'a> {
+    fn from(module: &mut Module) -> Self {
+        Builder::new(module.entry.take(), None, None)
+    }
+}
+
+// TODO: figure out
+//impl<'a> Drop for Builder<'a> {
+//    fn drop(&mut self) {
+//        self.func.take();
+//        self.arg_buf.take();
+//    }
+//}
 
 #[derive(Debug, Clone, Hash)]
 pub struct Function {
     handle: tvm::TVMFunctionHandle,
     is_global: bool,
     is_released: bool,
-    //_marker: PhantomData<()>
 }
 
 impl Function {
@@ -161,12 +205,10 @@ impl Function {
             handle: handle,
             is_global: is_global,
             is_released: is_released,
-            //_marker: PhantomData
         }
     }
 
     pub fn get_function(name: String, is_global: bool, allow_missing: bool) -> Option<Function> {
-        // let name = name.to_owned();
         GLOBAL_FUNCTION_NAMES
             .lock()
             .unwrap()
@@ -187,9 +229,11 @@ impl Function {
 impl Drop for Function {
     fn drop(&mut self) {
         if !self.is_released {
+            println!("not released yet!");
             if !self.is_global {
+                println!("not global {:?}", self.handle);
                 check_call!(tvm::TVMFuncFree(self.handle));
-                //unsafe { ptr::drop_in_place(*self.handle) };
+                unsafe { ptr::drop_in_place(self.handle) };
                 self.is_released = true;
             }
         }

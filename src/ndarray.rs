@@ -14,7 +14,7 @@ use super::*;
 
 #[derive(Debug)]
 pub struct NDArray {
-    handle: tvm::TVMArrayHandle,
+    pub(crate) handle: tvm::TVMArrayHandle,
     is_view: bool,
 }
 
