@@ -1,5 +1,6 @@
 use std::convert::TryFrom;
 use std::ffi::CStr;
+use std::marker::PhantomData;
 use std::marker::Send;
 use std::mem;
 use std::os::raw::{c_char, c_int, c_uint, c_void};
@@ -7,7 +8,6 @@ use std::ptr;
 use std::slice;
 use std::str;
 use std::sync::Mutex;
-use std::marker::PhantomData;
 
 use tvm;
 
@@ -62,10 +62,16 @@ pub struct Builder<'a> {
 }
 
 impl<'a> Builder<'a> {
-    pub fn new(func: Option<Function>,
-               arg_buf: Option<Box<[TVMArgValue<'a>]>>,
-               ret_buf: Option<Box<[TVMRetValue<'a>]>>) -> Self {
-        Self { func, arg_buf, ret_buf }
+    pub fn new(
+        func: Option<Function>,
+        arg_buf: Option<Box<[TVMArgValue<'a>]>>,
+        ret_buf: Option<Box<[TVMRetValue<'a>]>>,
+    ) -> Self {
+        Self {
+            func,
+            arg_buf,
+            ret_buf,
+        }
     }
 
     pub fn get_function(mut self, name: String, is_global: bool, allow_missing: bool) -> Self {
@@ -96,76 +102,75 @@ impl<'a> Builder<'a> {
         }
     }
 
-    pub fn accept_ret<'b, T: 'b + ?Sized>(mut self, arg: &'b T) -> Self
+    pub fn accept_ret<'b, T: 'b + ?Sized>(mut self, arg: &'b mut T) -> Self
     where
         TVMValue: From<&'b T>,
         TypeCode: From<&'b T>,
     {
-        let tvm_arg = TVMRetValue::new(TVMValue::from(arg), TypeCode::from(arg));
+        let tvm_ret = TVMRetValue::new(TVMValue::from(arg), TypeCode::from(arg));
         if self.ret_buf.is_none() {
-            self.ret_buf = Some(Box::new([tvm_arg]));
+            self.ret_buf = Some(Box::new([tvm_ret]));
             return self;
         } else {
-            let new_arg_buf = self.ret_buf.take().map(|bbuf| {
+            let new_ret_buf = self.ret_buf.take().map(|bbuf| {
                 let mut new_buf = Vec::with_capacity(1);
-                let tmp = Vec::from(bbuf);
-                for elt in tmp {
-                    new_buf.push(elt);
-                }
-                new_buf.push(tvm_arg);
+                new_buf.push(tvm_ret);
                 new_buf.into_boxed_slice()
             });
-            Self::new(self.func, self.arg_buf, new_arg_buf)
+            Self::new(self.func, self.arg_buf, new_ret_buf)
         }
     }
 
     pub fn invoke(self) -> TVMResult<TVMRetValue<'a>> {
-     self(())
+        self(())
     }
 }
 
 impl<'a> FnOnce<((),)> for Builder<'a> {
- type Output = TVMResult<TVMRetValue<'a>>;
- extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
-     if self.func.is_none() { panic!("Function handle is None") }
-     let mut ret_val = tvm::TVMValue { v_int64: 0 };
-     let mut ret_type_code = 0;
-     if self.ret_buf.is_some() {
-         ret_val = *self.ret_buf.clone().unwrap()[0].value;
-         ret_type_code = self.ret_buf.clone().unwrap()[0].type_code as c_int;
-     }
-     let arg_buf = self.arg_buf.clone().unwrap();
-     let ret_buf = self.ret_buf.clone().unwrap();
-     let num_args = arg_buf.len() + ret_buf.len();
-     let mut values = arg_buf
-         .iter()
-         .map(|tav| tav.clone().value.inner)
-         .collect::<Vec<tvm::TVMValue>>();
-     values.truncate(num_args);
+    type Output = TVMResult<TVMRetValue<'a>>;
+    extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
+        if self.func.is_none() {
+            panic!("Function handle is None")
+        }
+        let mut ret_val = tvm::TVMValue { v_int64: 0 };
+        let mut ret_type_code = 0;
+        let arg_buf = self.arg_buf.clone().unwrap();
+        let mut num_args = arg_buf.len();
+        let mut values = arg_buf
+            .iter()
+            .map(|tav| tav.clone().value.inner)
+            .collect::<Vec<tvm::TVMValue>>();
+        let mut tcodes = arg_buf
+            .iter()
+            .map(|tav| tav.clone().type_code as c_int)
+            .collect::<Vec<_>>();
 
-     let mut tcodes = arg_buf
-         .iter()
-         .map(|tav| tav.clone().type_code as c_int)
-         .collect::<Vec<_>>();
-     tcodes.truncate(num_args);
-     println!("tcodes: {:?}", tcodes);
-     //println!("func handle: {:?}", self.func.clone().unwrap().handle);
-     println!("num args: {}", num_args);
-     check_call!(tvm::TVMFuncCall(
-         self.func.unwrap().handle,
-         values.as_mut_ptr(),
-         tcodes.as_mut_ptr(),
-         num_args as c_int,
-         &mut ret_val as *mut _,
-         &mut ret_type_code as *mut _
-     ));
-     println!("{:?}", ret_type_code);
-     let ret = TVMRetValue::new(
-         TVMValue::new(ValueKind::Return, ret_val),
-         TypeCode::from(&ret_type_code),
-     );
-     Ok(ret)
- }
+        if self.ret_buf.is_some() {
+            num_args = num_args + 1;
+            ret_val = *self.ret_buf.clone().unwrap()[0].value;
+            ret_type_code = self.ret_buf.clone().unwrap()[0].type_code as c_int;
+            values.append(&mut vec![ret_val]);
+            tcodes.append(&mut vec![ret_type_code]);
+        }
+        values.truncate(num_args);
+        tcodes.truncate(num_args);
+        //println!("tcodes: {:?}", tcodes);
+        //println!("num args: {}", num_args);
+        check_call!(tvm::TVMFuncCall(
+            self.func.unwrap().handle,
+            values.as_mut_ptr(),
+            tcodes.as_mut_ptr(),
+            num_args as c_int,
+            &mut ret_val as *mut _,
+            &mut ret_type_code as *mut _
+        ));
+        println!("{:?}", ret_type_code);
+        let ret = TVMRetValue::new(
+            TVMValue::new(ValueKind::Return, ret_val),
+            TypeCode::from(&ret_type_code),
+        );
+        Ok(ret)
+    }
 }
 
 impl<'a> From<Function> for Builder<'a> {
@@ -196,11 +201,7 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn new(
-        handle: tvm::TVMFunctionHandle,
-        is_global: bool,
-        is_released: bool,
-    ) -> Self {
+    pub fn new(handle: tvm::TVMFunctionHandle, is_global: bool, is_released: bool) -> Self {
         Function {
             handle: handle,
             is_global: is_global,
@@ -213,7 +214,7 @@ impl Function {
             .lock()
             .unwrap()
             .iter()
-            .find(move |s| *s == &name)
+            .find(|s| *s == &name)
             .map(|nm| get_global_func(nm, is_global, allow_missing).unwrap())
     }
 
@@ -229,9 +230,9 @@ impl Function {
 impl Drop for Function {
     fn drop(&mut self) {
         if !self.is_released {
-            println!("not released yet!");
+            //println!("not released yet!");
             if !self.is_global {
-                println!("not global {:?}", self.handle);
+                //println!("not global, so releasing {:?}", self.handle);
                 check_call!(tvm::TVMFuncFree(self.handle));
                 unsafe { ptr::drop_in_place(self.handle) };
                 self.is_released = true;
@@ -247,7 +248,7 @@ mod tests {
     #[test]
     fn list_global_func() {
         let list = list_global_func_names();
-        println!("{:?}", list);
+        //println!("{:?}", list);
         assert!(
             list.lock()
                 .unwrap()
@@ -256,11 +257,6 @@ mod tests {
                 .is_some()
         );
     }
-
-//    #[test]
-//    fn global_func() {
-//        assert!(get_global_func("tvm.graph_runtime.create", true, false).is_some());
-//    }
 
     #[test]
     fn get_fn() {
@@ -271,12 +267,16 @@ mod tests {
         assert!(Function::get_function("does not exists!".to_owned(), false, false).is_none());
     }
 
-     #[test]
-     fn provide_args() {
-         let mut func = Builder::default().get_function("tvm.graph_runtime.remote_create".to_owned(), true, false);
-         func = func.push_arg(&10).push_arg("test");
-         // println!("{:?}", func.arg_buf);
-         assert!(func.arg_buf.is_some());
-         assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(2));
-     }
+    #[test]
+    fn provide_args() {
+        let mut func = Builder::default().get_function(
+            "tvm.graph_runtime.remote_create".to_owned(),
+            true,
+            false,
+        );
+        func = func.push_arg(&10).push_arg("test");
+        // println!("{:?}", func.arg_buf);
+        assert!(func.arg_buf.is_some());
+        assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(2));
+    }
 }
