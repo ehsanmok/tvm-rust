@@ -225,6 +225,10 @@ impl Function {
     pub fn is_global(&self) -> bool {
         self.is_global
     }
+
+    pub fn is_released(&self) -> bool {
+        self.is_released
+    }
 }
 
 impl Drop for Function {
@@ -238,6 +242,51 @@ impl Drop for Function {
                 self.is_released = true;
             }
         }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BackendPackedCFunc {
+    pub func: tvm::TVMPackedCFunc,
+    pub finalizer: tvm::TVMPackedCFuncFinalizer
+}
+
+impl BackendPackedCFunc {
+    pub fn new(func: tvm::TVMPackedCFunc, finalizer: tvm::TVMPackedCFuncFinalizer) -> Self {
+        Self { func, finalizer }
+    }
+
+    pub fn register(&mut self, name: &str, override_: bool) -> TVMResult<()> {
+        self.func.take().map(|func| {
+            let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
+            check_call!(tvm::TVMFuncCreateFromCFunc(Some(func), ptr::null_mut() as *mut c_void,
+                                                    self.finalizer, &mut fhandle as *mut _));
+            let ove = if override_ { 1 } else { 0 } as c_int;
+            let name = name.to_owned();
+            check_call!(tvm::TVMFuncRegisterGlobal(name.as_str().as_ptr() as *const c_char, fhandle, ove));
+            mem::forget(name);
+        }).ok_or(TVMError::new("Packed function is not provided"))
+    }
+
+    pub fn callback<'a, F>(&self) -> Box<F>
+        where F: Fn(&[TVMArgValue]) -> TVMRetValue<'a>
+    {
+            unimplemented!()
+    }
+}
+
+impl<'a> TryFrom<&'a mut BackendPackedCFunc> for Function {
+    type Error = TVMError;
+    fn try_from(packed: &mut BackendPackedCFunc) -> TVMResult<Self> {
+        packed.func.take().map(|func| {
+            let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
+            let resource_handle = ptr::null_mut() as *mut c_void;
+            check_call!(tvm::TVMFuncCreateFromCFunc(Some(func),
+                                                    resource_handle,
+                                                    packed.finalizer,
+                                                    &mut fhandle as *mut _));
+            Function::new(fhandle, false, false)
+        }).ok_or(TVMError::new("Packed function is not provided"))
     }
 }
 
@@ -278,5 +327,44 @@ mod tests {
         // println!("{:?}", func.arg_buf);
         assert!(func.arg_buf.is_some());
         assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(2));
+    }
+    //TODO: fix get_function
+    //#[test]
+    fn custom_register() {
+        unsafe extern "C" fn myzero(args: *mut tvm::TVMValue,
+                                  type_codes: *mut c_int,
+                                  num_args: c_int,
+                                  ret: *mut c_void,
+                                  ret_handle: *mut c_void) -> c_int { 0 }
+        let mut zero_packed = BackendPackedCFunc::new(Some(myzero), None);
+        assert!(zero_packed.register("myzero", true).is_ok());
+        //println!("{:?}", list_global_func_names());
+        assert!(Function::get_function("myzero".to_owned(), true, false).is_some());
+    }
+
+    #[test]
+    fn packed_to_func() {
+        unsafe extern "C" fn myzero(args: *mut tvm::TVMValue,
+                                  type_codes: *mut c_int,
+                                  num_args: c_int,
+                                  ret: *mut c_void,
+                                  ret_handle: *mut c_void) -> c_int { 0 }
+        let mut zero_packed = BackendPackedCFunc::new(Some(myzero), None);
+        let func = Function::try_from(&mut zero_packed);
+        assert!(func.is_ok());
+        assert!(!func.unwrap().handle.is_null());
+    }
+    // TODO:
+    //#[test]
+    fn callback() {
+        unsafe extern "C" fn myzero(args: *mut tvm::TVMValue,
+                                  type_codes: *mut c_int,
+                                  num_args: c_int,
+                                  ret: *mut c_void,
+                                  ret_handle: *mut c_void) -> c_int { 0 }
+        let zero_packed = BackendPackedCFunc::new(Some(myzero), None);
+        //let func = Function::try_from(&mut zero_packed);
+        //let ret = func.unwrap().push_arg(&10);
+        // println!("{:?}", ret);
     }
 }

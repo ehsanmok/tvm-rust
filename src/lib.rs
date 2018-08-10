@@ -52,9 +52,14 @@ macro_rules! check_call {
 // TODO: make it robust thread_local for ffi set
 /// TVM error type
 #[derive(Debug)]
-pub struct TVMError;
+pub struct TVMError {
+    msg: &'static str,
+}
 
 impl TVMError {
+    pub fn new(msg: &'static str) -> TVMError {
+        TVMError { msg }
+    }
     /// Get the last error message from TVM
     pub fn get_last() -> &'static str {
         unsafe {
