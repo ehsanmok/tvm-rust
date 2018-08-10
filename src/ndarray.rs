@@ -14,7 +14,7 @@ use super::*;
 
 #[derive(Debug)]
 pub struct NDArray {
-    handle: tvm::TVMArrayHandle,
+    pub(crate) handle: tvm::TVMArrayHandle,
     is_view: bool,
 }
 
@@ -87,7 +87,7 @@ impl NDArray {
             panic!("Cannot copy empty array to Vec");
         }
         let earr = empty(&mut self.shape().unwrap(), TVMContext::cpu(0), self.dtype());
-        let target = self.copyto(earr).unwrap();
+        let target = self.copy_to(earr).unwrap();
         let arr = unsafe { *(target.handle) };
         let sz = self.size().unwrap() as usize;
         let mut v: Vec<T> = Vec::with_capacity(sz * mem::size_of::<T>());
@@ -99,7 +99,7 @@ impl NDArray {
         Ok(v)
     }
     // TODO: lane
-    pub fn copyfrom<T>(&mut self, data: &mut Vec<T>) {
+    pub fn copy_from<T>(&mut self, data: &mut Vec<T>) {
         // lane = 1
         check_call!(tvm::TVMArrayCopyFromBytes(
             self.handle,
@@ -108,7 +108,7 @@ impl NDArray {
         ));
     }
     // TODO: type check
-    pub fn copyto(&self, target: NDArray) -> TVMResult<NDArray> {
+    pub fn copy_to(&self, target: NDArray) -> TVMResult<NDArray> {
         if self.shape().is_none() {
             panic!("Cannot copy empty array to {}", target.context());
         }
@@ -131,7 +131,7 @@ impl NDArray {
             .iter()
             .map(|e| **e)
             .collect();
-        nd.copyfrom(&mut vec);
+        nd.copy_from(&mut vec);
         Ok(nd)
     }
 }
@@ -171,12 +171,12 @@ mod tests {
 
     #[test]
     fn copy() {
-        let mut shape = vec![1, 4];
+        let mut shape = vec![4];
         let mut data = vec![1f32, 2., 3., 4.];
         // let mut data = vec![1i32, 2, 3, 4];
         let ctx = TVMContext::cpu(0); // TVMContext::gpu(0);
         let mut ndarray = empty(&mut shape, ctx, TVMType::from("float"));
-        ndarray.copyfrom(&mut data);
+        ndarray.copy_from(&mut data);
         assert_eq!(ndarray.to_vec::<f32>().unwrap(), data);
     }
 

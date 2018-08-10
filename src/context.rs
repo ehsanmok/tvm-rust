@@ -107,36 +107,40 @@ impl TVMContext {
 }
 
 impl TVMContext {
+    // TODO: macro impl device_api.h
     pub fn exist(&self) -> bool {
-        let func = get_api("_GetDeviceAttr".to_owned(), true);
+        let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.inner as i32;
-        let ret = func
+        let ret = function::Builder::from(func)
             .push_arg(&dt)
             .push_arg(&self.device_id)
             .push_arg(&0)
-            .invoke();
+            .invoke()
+            .unwrap();
         ret.value != TVMValue::default()
     }
 
     pub fn max_thread_pre_block(&self) -> usize {
-        let func = get_api("_GetDeviceAttr".to_owned(), true);
+        let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.inner as i32;
-        let ret = func
+        let ret = function::Builder::from(func)
             .push_arg(&dt)
             .push_arg(&self.device_id)
             .push_arg(&1)
-            .invoke();
+            .invoke()
+            .unwrap();
         unsafe { ret.value.inner.v_int64 as usize }
     }
 
     pub fn warp_size(&self) -> usize {
-        let func = get_api("_GetDeviceAttr".to_owned(), true);
+        let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.inner as i32;
-        let ret = func
+        let ret = function::Builder::from(func)
             .push_arg(&dt)
             .push_arg(&self.device_id)
             .push_arg(&2)
-            .invoke();
+            .invoke()
+            .unwrap();
         unsafe { ret.value.inner.v_int64 as usize }
     }
 

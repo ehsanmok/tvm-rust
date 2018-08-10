@@ -1,4 +1,6 @@
+use std::ffi::OsString;
 use std::marker::PhantomData;
+use std::mem;
 use std::ops::{Deref, DerefMut};
 
 use super::*;
@@ -40,6 +42,19 @@ macro_rules! impl_prim_val {
     };
 }
 
+macro_rules! impl_prim_val_mut {
+    ($type:ty, $kind:expr, $field:ident) => {
+        impl<'a> From<&'a mut $type> for TVMValue {
+            fn from(arg: &mut $type) -> Self {
+                let inner = tvm::TVMValue {
+                    $field: *arg as i64,
+                };
+                Self::new($kind, inner)
+            }
+        }
+    };
+}
+
 impl_prim_val!(i64, ValueKind::Int, v_int64);
 impl_prim_val!(i32, ValueKind::Int, v_int64);
 impl_prim_val!(i8, ValueKind::Int, v_int64);
@@ -48,6 +63,15 @@ impl_prim_val!(u32, ValueKind::Int, v_int64);
 impl_prim_val!(u8, ValueKind::Int, v_int64);
 impl_prim_val!(bool, ValueKind::Int, v_int64);
 impl_prim_val!(tvm::DLDeviceType, ValueKind::Int, v_int64);
+
+impl_prim_val_mut!(i64, ValueKind::Int, v_int64);
+impl_prim_val_mut!(i32, ValueKind::Int, v_int64);
+impl_prim_val_mut!(i8, ValueKind::Int, v_int64);
+impl_prim_val_mut!(u64, ValueKind::Int, v_int64);
+impl_prim_val_mut!(u32, ValueKind::Int, v_int64);
+impl_prim_val_mut!(u8, ValueKind::Int, v_int64);
+impl_prim_val_mut!(bool, ValueKind::Int, v_int64);
+impl_prim_val_mut!(tvm::DLDeviceType, ValueKind::Int, v_int64);
 
 impl<'a> From<&'a tvm::f32> for TVMValue {
     fn from(arg: &tvm::f32) -> Self {
@@ -58,8 +82,24 @@ impl<'a> From<&'a tvm::f32> for TVMValue {
     }
 }
 
+impl<'a> From<&'a mut tvm::f32> for TVMValue {
+    fn from(arg: &mut tvm::f32) -> Self {
+        let inner = tvm::TVMValue {
+            v_float64: ordered_float::OrderedFloat((*arg).into_inner() as f64),
+        };
+        Self::new(ValueKind::Float, inner)
+    }
+}
+
 impl<'a> From<&'a tvm::f64> for TVMValue {
     fn from(arg: &tvm::f64) -> Self {
+        let inner = tvm::TVMValue { v_float64: *arg };
+        Self::new(ValueKind::Float, inner)
+    }
+}
+
+impl<'a> From<&'a mut tvm::f64> for TVMValue {
+    fn from(arg: &mut tvm::f64) -> Self {
         let inner = tvm::TVMValue { v_float64: *arg };
         Self::new(ValueKind::Float, inner)
     }
@@ -76,6 +116,15 @@ impl<'a> From<&'a str> for TVMValue {
 
 impl<'a> From<&'a String> for TVMValue {
     fn from(arg: &String) -> TVMValue {
+        let inner = tvm::TVMValue {
+            v_str: arg.as_ptr() as *const c_char,
+        };
+        Self::new(ValueKind::Str, inner)
+    }
+}
+
+impl<'a> From<&'a mut String> for TVMValue {
+    fn from(arg: &mut String) -> TVMValue {
         let inner = tvm::TVMValue {
             v_str: arg.as_ptr() as *const c_char,
         };
@@ -101,19 +150,37 @@ impl<T> From<*const T> for TVMValue {
     }
 }
 
-impl<'a> From<&'a mut tvm::TVMArray> for TVMValue {
-    fn from(arr: &'a mut tvm::TVMArray) -> Self {
+impl<'a> From<&'a mut Module> for TVMValue {
+    fn from(arg: &mut Module) -> Self {
         let inner = tvm::TVMValue {
-            v_handle: arr as *mut _ as *mut c_void,
+            v_handle: arg as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
 }
 
-impl<'a> From<&'a tvm::TVMArray> for TVMValue {
-    fn from(arr: &'a tvm::TVMArray) -> Self {
+impl<'a> From<&'a mut Function> for TVMValue {
+    fn from(arg: &mut Function) -> Self {
         let inner = tvm::TVMValue {
-            v_handle: arr as *const _ as *mut tvm::TVMArray as *mut c_void,
+            v_handle: arg as *mut _ as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
+
+impl<'a> From<&'a mut NDArray> for TVMValue {
+    fn from(arr: &mut NDArray) -> Self {
+        let inner = tvm::TVMValue {
+                v_handle: arr.handle as *mut _ as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
+
+impl<'a> From<&'a NDArray> for TVMValue {
+    fn from(arr: &NDArray) -> Self {
+        let inner = tvm::TVMValue {
+                v_handle: arr.handle as *const _ as *mut tvm::TVMArray as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -237,21 +304,3 @@ impl<'a, 'b> From<&'b TVMArgValue<'a>> for TypeCode {
 }
 
 pub type TVMRetValue<'a> = TVMArgValue<'a>;
-
-macro_rules! impl_prim_ret {
-    ($type:ty, $type_code:expr) => {
-        impl<'a> From<$type> for TVMRetValue<'a> {
-            fn from(ret: $type) -> Self {
-                TVMRetValue::new(TVMValue::from(&ret), $type_code)
-            }
-        }
-    };
-}
-
-impl_prim_ret!(i32, TypeCode::kDLInt);
-impl_prim_ret!(i64, TypeCode::kDLInt);
-impl_prim_ret!(u32, TypeCode::kDLUInt);
-impl_prim_ret!(u64, TypeCode::kDLUInt);
-impl_prim_ret!(tvm::f32, TypeCode::kDLFloat);
-impl_prim_ret!(tvm::f64, TypeCode::kDLFloat);
-impl_prim_ret!(String, TypeCode::kStr);
