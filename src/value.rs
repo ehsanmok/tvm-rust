@@ -170,10 +170,8 @@ impl<'a> From<&'a mut Function> for TVMValue {
 
 impl<'a> From<&'a mut NDArray> for TVMValue {
     fn from(arr: &mut NDArray) -> Self {
-        let inner = unsafe {
-            tvm::TVMValue {
-                v_handle: &mut *arr.handle as *mut _ as *mut c_void,
-            }
+        let inner = tvm::TVMValue {
+                v_handle: arr.handle as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -181,10 +179,8 @@ impl<'a> From<&'a mut NDArray> for TVMValue {
 
 impl<'a> From<&'a NDArray> for TVMValue {
     fn from(arr: &NDArray) -> Self {
-        let inner = unsafe {
-            tvm::TVMValue {
-                v_handle: &*arr.handle as *const _ as *mut tvm::TVMArray as *mut c_void,
-            }
+        let inner = tvm::TVMValue {
+                v_handle: arr.handle as *const _ as *mut tvm::TVMArray as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -308,21 +304,3 @@ impl<'a, 'b> From<&'b TVMArgValue<'a>> for TypeCode {
 }
 
 pub type TVMRetValue<'a> = TVMArgValue<'a>;
-
-macro_rules! impl_prim_ret {
-    ($type:ty, $type_code:expr) => {
-        impl<'a> From<$type> for TVMRetValue<'a> {
-            fn from(ret: $type) -> Self {
-                TVMRetValue::new(TVMValue::from(&ret), $type_code)
-            }
-        }
-    };
-}
-
-impl_prim_ret!(i32, TypeCode::kDLInt);
-impl_prim_ret!(i64, TypeCode::kDLInt);
-impl_prim_ret!(u32, TypeCode::kDLUInt);
-impl_prim_ret!(u64, TypeCode::kDLUInt);
-impl_prim_ret!(tvm::f32, TypeCode::kDLFloat);
-impl_prim_ret!(tvm::f64, TypeCode::kDLFloat);
-impl_prim_ret!(String, TypeCode::kStr);

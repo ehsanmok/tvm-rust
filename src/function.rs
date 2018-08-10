@@ -164,7 +164,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
             &mut ret_val as *mut _,
             &mut ret_type_code as *mut _
         ));
-        println!("{:?}", ret_type_code);
+        //println!("{:?}", ret_type_code);
         let ret = TVMRetValue::new(
             TVMValue::new(ValueKind::Return, ret_val),
             TypeCode::from(&ret_type_code),
