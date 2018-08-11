@@ -171,7 +171,7 @@ impl<'a> From<&'a mut Function> for TVMValue {
 impl<'a> From<&'a mut NDArray> for TVMValue {
     fn from(arr: &mut NDArray) -> Self {
         let inner = tvm::TVMValue {
-                v_handle: arr.handle as *mut _ as *mut c_void,
+            v_handle: arr.handle as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -180,7 +180,7 @@ impl<'a> From<&'a mut NDArray> for TVMValue {
 impl<'a> From<&'a NDArray> for TVMValue {
     fn from(arr: &NDArray) -> Self {
         let inner = tvm::TVMValue {
-                v_handle: arr.handle as *const _ as *mut tvm::TVMArray as *mut c_void,
+            v_handle: arr.handle as *const _ as *mut tvm::TVMArray as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }

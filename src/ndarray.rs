@@ -18,12 +18,6 @@ pub struct NDArray {
     is_view: bool,
 }
 
-impl TVMTypeCode for NDArray {
-    fn type_code() -> TypeCode {
-        TypeCode::kArrayHandle
-    }
-}
-
 pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
     let mut handle = ptr::null_mut() as tvm::TVMArrayHandle;
     check_call!(tvm::TVMArrayAlloc(
@@ -98,9 +92,10 @@ impl NDArray {
         }
         Ok(v)
     }
-    // TODO: lane
+
     pub fn copy_from<T>(&mut self, data: &mut Vec<T>) {
-        // lane = 1
+        let sz = data.len();
+        data.truncate(sz);
         check_call!(tvm::TVMArrayCopyFromBytes(
             self.handle,
             data.as_mut_ptr() as *mut _,
@@ -136,23 +131,23 @@ impl NDArray {
     }
 }
 
-impl Drop for NDArray {
-    fn drop(&mut self) {
-        check_call!(tvm::TVMArrayFree(self.handle));
-    }
-}
-
 impl<'a> TryFrom<&'a NDArray> for ArrayD<f32> {
     type Error = TVMError;
     fn try_from(array: &NDArray) -> TVMResult<ArrayD<f32>> {
         if array.shape().is_none() {
             panic!("Cannot convert from empty array");
         }
-        // dtype
+        // TODO: dtype
         Ok(rust_ndarray::Array::from_shape_vec(
             array.shape().unwrap().clone(),
             array.to_vec::<f32>().unwrap(),
         ).unwrap())
+    }
+}
+
+impl Drop for NDArray {
+    fn drop(&mut self) {
+        check_call!(tvm::TVMArrayFree(self.handle));
     }
 }
 
@@ -177,6 +172,7 @@ mod tests {
         let ctx = TVMContext::cpu(0); // TVMContext::gpu(0);
         let mut ndarray = empty(&mut shape, ctx, TVMType::from("float"));
         ndarray.copy_from(&mut data);
+        assert_eq!(ndarray.shape(), Some(shape));
         assert_eq!(ndarray.to_vec::<f32>().unwrap(), data);
     }
 
@@ -187,6 +183,7 @@ mod tests {
             .into_dyn();
         let nd =
             NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+        assert_eq!(nd.shape(), Some(vec![2, 2]));
         let rnd = rust_ndarray::ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));
     }

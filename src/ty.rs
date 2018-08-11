@@ -73,10 +73,6 @@ impl_prim_type!(Function, kFuncHandle, mut);
 impl_prim_type!(Module, kModuleHandle, mut);
 impl_prim_type!(NDArray, kArrayHandle, mut);
 
-pub(crate) trait TVMTypeCode {
-    fn type_code() -> TypeCode;
-}
-
 #[derive(Debug, Copy, Clone)]
 pub struct TVMType {
     pub inner: tvm::TVMType, // (type) code: u8, bits: u8, lanes: u16
