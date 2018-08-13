@@ -30,23 +30,23 @@ impl Module {
 
     pub fn entry_func(mut self) -> Self {
         if self.entry.is_none() {
-            self.entry = self.get_function(ENTRY_FUNC, false).ok();
+            self.entry = self.get_function(ENTRY_FUNC.to_owned(), false).ok();
         }
         self
     }
 
-    pub fn get_function(&mut self, name: &str, query_import: bool) -> TVMResult<Function> {
+    pub fn get_function(&mut self, name: String, query_import: bool) -> TVMResult<Function> {
         let name = name.to_owned();
         let query_import = if query_import == true { 1 } else { 0 };
         let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
         check_call!(tvm::TVMModGetFunction(
             self.handle,
-            name.as_str().as_ptr() as *const c_char,
+            name.as_ptr() as *const c_char,
             query_import as c_int,
             &mut fhandle as *mut _
         ));
-        if self.handle.is_null() {
-            panic!("Module has no function {}", name);
+        if fhandle.is_null() {
+            panic!("function handle is null for {}", name);
         } else {
             mem::forget(name);
             Ok(Function::new(fhandle, false, false))

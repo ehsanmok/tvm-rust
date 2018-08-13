@@ -11,5 +11,5 @@ ndarray = "0.11.2"
 tvm-rust = { path = "../../" }
 
 [features]
-default = []
+cpu = []
 gpu = []

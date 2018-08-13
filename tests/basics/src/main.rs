@@ -12,7 +12,7 @@ fn main() {
     let mut shape = vec![2];
     let mut data = vec![3f32, 4.0];
 
-    if cfg!(feature = "default") {
+    if cfg!(feature = "cpu") {
         println!("cpu test");
         let mut arr = tvm::ndarray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
 
