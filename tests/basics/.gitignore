@@ -4,3 +4,4 @@ Cargo.lock
 *.o
 *.so
 *.ptx
+*.json
