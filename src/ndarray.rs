@@ -76,6 +76,29 @@ impl NDArray {
         dldtype.into()
     }
 
+    pub fn ndim(&self) -> usize {
+        unsafe { (*self.handle).ndim as usize }
+    }
+
+    pub fn strides(&self) -> Option<Vec<usize>> {
+        unsafe { (*self.handle).strides.as_mut().map(|pv| {
+            let sz = self.ndim();
+            let mut v: Vec<usize> = Vec::with_capacity(sz * mem::size_of::<usize>());
+            v.as_mut_ptr().copy_from_nonoverlapping(pv as *mut _ as *const _, sz);
+            v.set_len(sz);
+            v
+            })
+        }
+    }
+
+    pub fn is_contiguous(&self) -> bool {
+        self.strides().is_none()
+    }
+
+    pub fn byte_offset(&self) -> isize {
+        unsafe { (*self.handle).byte_offset as isize }
+    }
+
     pub fn to_vec<T>(&self) -> TVMResult<Vec<T>> {
         if self.shape().is_none() {
             panic!("Cannot copy empty array to Vec");
@@ -93,12 +116,11 @@ impl NDArray {
         Ok(v)
     }
 
-    pub fn copy_from<T>(&mut self, data: &mut Vec<T>) {
+    pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
         let sz = data.len();
-        data.truncate(sz);
         check_call!(tvm::TVMArrayCopyFromBytes(
             self.handle,
-            data.as_mut_ptr() as *mut _,
+            data.as_ptr() as *mut _,
             data.len() * mem::size_of::<T>()
         ));
     }
@@ -122,11 +144,11 @@ impl NDArray {
     ) -> TVMResult<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
-        let mut vec: Vec<f32> = rust_ndarray::Array::from_iter(rnd.iter())
+        let mut vec = rust_ndarray::Array::from_iter(rnd.iter())
             .iter()
             .map(|e| **e)
-            .collect();
-        nd.copy_from(&mut vec);
+            .collect::<Vec<f32>>();
+        nd.copy_from_buffer(vec.as_mut_slice());
         Ok(nd)
     }
 }
@@ -162,6 +184,9 @@ mod tests {
         let ndarray = empty(&mut shape, ctx, TVMType::from("int"));
         assert_eq!(ndarray.shape().unwrap(), shape);
         assert_eq!(ndarray.size().unwrap(), shape.into_iter().product());
+        assert_eq!(ndarray.ndim(), 3);
+        assert!(ndarray.strides().is_none());
+        assert_eq!(ndarray.byte_offset(), 0);
     }
 
     #[test]
@@ -171,9 +196,13 @@ mod tests {
         // let mut data = vec![1i32, 2, 3, 4];
         let ctx = TVMContext::cpu(0); // TVMContext::gpu(0);
         let mut ndarray = empty(&mut shape, ctx, TVMType::from("float"));
-        ndarray.copy_from(&mut data);
+        ndarray.copy_from_buffer(&mut data);
         assert_eq!(ndarray.shape(), Some(shape));
         assert_eq!(ndarray.to_vec::<f32>().unwrap(), data);
+        assert_eq!(ndarray.ndim(), 1);
+        assert!(ndarray.is_contiguous());
+        assert_eq!(ndarray.byte_offset(), 0);
+
     }
 
     #[test]
@@ -183,6 +212,7 @@ mod tests {
             .into_dyn();
         let nd =
             NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+        println!("ndim: {}, strides: {:?}, byte_offset: {}", nd.ndim(), nd.strides(), nd.byte_offset());
         assert_eq!(nd.shape(), Some(vec![2, 2]));
         let rnd = rust_ndarray::ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));

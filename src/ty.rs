@@ -21,6 +21,12 @@ pub enum TypeCode {
     kBytes = 12,
 }
 
+impl Default for TypeCode {
+    fn default() -> Self {
+        TypeCode::kDLInt
+    }
+}
+
 macro_rules! impl_prim_type {
     ($type:ty, $variant:ident) => {
         impl<'a> From<&'a $type> for TypeCode {

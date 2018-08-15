@@ -274,7 +274,7 @@ impl DerefMut for TVMValue {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
 pub struct TVMArgValue<'a> {
     pub value: TVMValue,
     pub type_code: TypeCode,

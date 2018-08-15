@@ -1,5 +1,3 @@
-#![feature(try_from)]
-
 extern crate ndarray as rust_ndarray;
 extern crate tvm_rust as tvm;
 
@@ -16,16 +14,8 @@ fn main() {
         println!("cpu test");
         let mut arr = tvm::ndarray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
 
-        arr.copy_from(&mut data);
-        // TODO: fix multi-dim
-        // let a = rust_ndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
-        //     .unwrap()
-        //     .into_dyn();
-        // println!("{:?}", a);
-        // let arr =
-        //     NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
-        // println!("{:?}", arr);
-        //let mut shape = vec![2, 2];
+        arr.copy_from_buffer(data.as_mut_slice());
+
         let mut ret = tvm::ndarray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
         let path = Path::new("add_cpu.so");
         let mut fadd = tvm::Module::load(path).unwrap();
@@ -37,8 +27,6 @@ fn main() {
             .invoke()
             .unwrap();
 
-        //println!("{:?}", NDArray::try_from(&ret));
-        //println!("{:?}", ret.to_vec::<f32>().unwrap());
         assert_eq!(ret.to_vec::<f32>().unwrap(), vec![6f32, 8.0]);
     }
 
@@ -46,7 +34,7 @@ fn main() {
         println!("gpu test");
         let mut arr = tvm::ndarray::empty(&mut shape, TVMContext::gpu(0), TVMType::from("float"));
 
-        arr.copy_from(&mut data);
+        arr.copy_from_buffer(data.as_mut_slice());
 
         let mut ret = tvm::ndarray::empty(&mut shape, TVMContext::gpu(0), TVMType::from("float"));
         let path = Path::new("add_gpu.so");
