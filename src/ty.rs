@@ -1,7 +1,13 @@
 use std::ffi::OsString;
 use std::ops::{Deref, DerefMut};
+use std::fmt::{self, Formatter, Display};
 
-use super::*;
+use tvm;
+
+use module::Module;
+use function::Function;
+use ndarray::NDArray;
+use TVMContext;
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -24,6 +30,26 @@ pub enum TypeCode {
 impl Default for TypeCode {
     fn default() -> Self {
         TypeCode::kDLInt
+    }
+}
+
+impl Display for TypeCode {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self {
+            TypeCode::kDLInt => write!(f, "int"),
+            TypeCode::kDLUInt => write!(f, "uint"),
+            TypeCode::kDLFloat => write!(f, "float"),
+            TypeCode::kHandle => write!(f, "handle"),
+            TypeCode::kNull => write!(f, "null"),
+            TypeCode::kTVMType => write!(f, "TVM type"),
+            TypeCode::kTVMContext => write!(f, "TVM context"),
+            TypeCode::kArrayHandle => write!(f, "Array handle"),
+            TypeCode::kNodeHandle => write!(f, "Node handle"),
+            TypeCode::kModuleHandle => write!(f, "Module handle"),
+            TypeCode::kFuncHandle => write!(f, "Function handle"),
+            TypeCode::kStr => write!(f, "string"),
+            TypeCode::kBytes => write!(f, "bytes"),
+        }
     }
 }
 
@@ -51,8 +77,8 @@ impl_prim_type!(i8, kDLInt);
 impl_prim_type!(u64, kDLUInt);
 impl_prim_type!(u32, kDLUInt);
 impl_prim_type!(u8, kDLUInt);
-impl_prim_type!(tvm::f64, kDLFloat);
-impl_prim_type!(tvm::f32, kDLFloat);
+impl_prim_type!(f64, kDLFloat);
+impl_prim_type!(f32, kDLFloat);
 impl_prim_type!(str, kStr);
 impl_prim_type!(String, kStr);
 impl_prim_type!(OsString, kStr);
@@ -68,8 +94,8 @@ impl_prim_type!(i8, kDLInt, mut);
 impl_prim_type!(u64, kDLUInt, mut);
 impl_prim_type!(u32, kDLUInt, mut);
 impl_prim_type!(u8, kDLUInt, mut);
-impl_prim_type!(tvm::f64, kDLFloat, mut);
-impl_prim_type!(tvm::f32, kDLFloat, mut);
+impl_prim_type!(f64, kDLFloat, mut);
+impl_prim_type!(f32, kDLFloat, mut);
 impl_prim_type!(str, kStr, mut);
 impl_prim_type!(String, kStr, mut);
 impl_prim_type!(OsString, kStr, mut);
@@ -79,7 +105,7 @@ impl_prim_type!(Function, kFuncHandle, mut);
 impl_prim_type!(Module, kModuleHandle, mut);
 impl_prim_type!(NDArray, kArrayHandle, mut);
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct TVMType {
     pub inner: tvm::TVMType, // (type) code: u8, bits: u8, lanes: u16
 }
@@ -96,7 +122,6 @@ impl TVMType {
     }
 }
 
-// only lanes = 1 for now
 impl<'a> From<&'a str> for TVMType {
     fn from(type_str: &'a str) -> Self {
         match type_str {
@@ -109,15 +134,17 @@ impl<'a> From<&'a str> for TVMType {
     }
 }
 
-impl PartialEq for TVMType {
-    fn eq(&self, other: &TVMType) -> bool {
-        self.inner.code == other.inner.code
-            && self.inner.bits == other.inner.bits
-            && self.inner.lanes == other.inner.lanes
+impl Display for TVMType {
+    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
+        match self.inner {
+            tvm::TVMType { code: 0, bits: 32, lanes: 1 } => write!(f, "int"),
+            tvm::TVMType { code: 1, bits: 32, lanes: 1 } => write!(f, "uint"),
+            tvm::TVMType { code: 2, bits: 32, lanes: 1 } => write!(f, "float"),
+            tvm::TVMType { code: 4, bits: 64, lanes: 1 } => write!(f, "handle"),
+            _ => write!(f, "Unknown type")
+        }
     }
 }
-
-impl Eq for TVMType {}
 
 impl From<TVMType> for tvm::DLDataType {
     fn from(dtype: TVMType) -> Self {
