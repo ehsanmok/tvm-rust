@@ -5,9 +5,6 @@ authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
 license = "Apache-2.0"
 description = "TVM runtime bindings"
 
-[dependencies]
-ordered-float = "0.5.0"
-
 [build-dependencies]
 bindgen = "0.37.4"
 

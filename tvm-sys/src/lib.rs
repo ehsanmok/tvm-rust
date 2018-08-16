@@ -6,13 +6,4 @@
     improper_ctypes
 )]
 
-extern crate ordered_float;
-
-mod helper {
-    pub type f32_helper = f32;
-    pub type f64_helper = f64;
-}
-pub type f32 = ordered_float::OrderedFloat<helper::f32_helper>;
-pub type f64 = ordered_float::OrderedFloat<helper::f64_helper>;
-
 include!("bindgen.rs");

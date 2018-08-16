@@ -2,11 +2,19 @@ use std::ffi::OsString;
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
+use std::fmt::{self, Formatter, Debug};
+use std::os::raw::{c_void, c_char};
 
-use super::*;
+use tvm;
+
+use TypeCode;
+use NDArray;
+use Function;
+use Module;
+use TVMContext;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
-pub enum ValueKind {
+pub(crate) enum ValueKind {
     Int,
     Float,
     Handle,
@@ -19,7 +27,7 @@ pub enum ValueKind {
 
 #[derive(Clone)]
 pub struct TVMValue {
-    pub kind: ValueKind,
+    pub(crate) kind: ValueKind,
     pub(crate) inner: tvm::TVMValue,
 }
 
@@ -72,38 +80,6 @@ impl_prim_val_mut!(u32, ValueKind::Int, v_int64);
 impl_prim_val_mut!(u8, ValueKind::Int, v_int64);
 impl_prim_val_mut!(bool, ValueKind::Int, v_int64);
 impl_prim_val_mut!(tvm::DLDeviceType, ValueKind::Int, v_int64);
-
-impl<'a> From<&'a tvm::f32> for TVMValue {
-    fn from(arg: &tvm::f32) -> Self {
-        let inner = tvm::TVMValue {
-            v_float64: ordered_float::OrderedFloat((*arg).into_inner() as f64),
-        };
-        Self::new(ValueKind::Float, inner)
-    }
-}
-
-impl<'a> From<&'a mut tvm::f32> for TVMValue {
-    fn from(arg: &mut tvm::f32) -> Self {
-        let inner = tvm::TVMValue {
-            v_float64: ordered_float::OrderedFloat((*arg).into_inner() as f64),
-        };
-        Self::new(ValueKind::Float, inner)
-    }
-}
-
-impl<'a> From<&'a tvm::f64> for TVMValue {
-    fn from(arg: &tvm::f64) -> Self {
-        let inner = tvm::TVMValue { v_float64: *arg };
-        Self::new(ValueKind::Float, inner)
-    }
-}
-
-impl<'a> From<&'a mut tvm::f64> for TVMValue {
-    fn from(arg: &mut tvm::f64) -> Self {
-        let inner = tvm::TVMValue { v_float64: *arg };
-        Self::new(ValueKind::Float, inner)
-    }
-}
 
 impl<'a> From<&'a str> for TVMValue {
     fn from(arg: &str) -> TVMValue {
@@ -198,19 +174,6 @@ impl<'a> From<&'a TVMContext> for TVMValue {
     }
 }
 
-impl Hash for TVMValue {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        unsafe {
-            self.inner.v_int64.hash(state);
-            self.inner.v_float64.hash(state);
-            self.inner.v_handle.hash(state);
-            self.inner.v_str.hash(state);
-            self.inner.v_type.hash(state);
-            self.inner.v_ctx.hash(state);
-        }
-    }
-}
-
 impl PartialEq for TVMValue {
     fn eq(&self, other: &TVMValue) -> bool {
         if self.kind != other.kind {
@@ -235,7 +198,7 @@ impl PartialEq for TVMValue {
             TVMValue { kind, inner } if kind == &ValueKind::Context => unsafe {
                 inner.v_ctx == other.inner.v_ctx
             },
-            _ => panic!("Undefined value comparision"),
+            _ => panic!("Undefined TVMValue comparision"),
         }
     }
 }
@@ -274,7 +237,7 @@ impl DerefMut for TVMValue {
     }
 }
 
-#[derive(Debug, Clone, Hash, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
 pub struct TVMArgValue<'a> {
     pub value: TVMValue,
     pub type_code: TypeCode,

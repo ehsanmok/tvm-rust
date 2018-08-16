@@ -130,8 +130,7 @@ impl NDArray {
     }
 
     pub fn copy_to_ndarray(&self, target: NDArray) -> TVMResult<NDArray> {
-        // TODO: add fmt to TVMType
-        assert_eq!(self.dtype(), target.dtype(), "Copy to ndarray expects dtype {:?}, but given {:?}", self.dtype(), target.dtype());
+        assert_eq!(self.dtype(), target.dtype(), "Copy expects ndarray of dtype {}, but given ndarray of {}", self.dtype(), target.dtype());
         check_call!(tvm::TVMArrayCopyFromTo(
             self.handle,
             target.handle,

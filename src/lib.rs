@@ -22,7 +22,6 @@
 //!
 
 extern crate ndarray as rust_ndarray;
-extern crate ordered_float;
 extern crate tvm_sys as tvm;
 #[macro_use]
 extern crate lazy_static;
