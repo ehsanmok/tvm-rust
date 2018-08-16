@@ -26,6 +26,7 @@ extern crate ordered_float;
 extern crate tvm_sys as tvm;
 #[macro_use]
 extern crate lazy_static;
+extern crate num_traits;
 
 use std::cell::RefCell;
 use std::collections::HashMap;

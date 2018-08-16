@@ -26,6 +26,7 @@ blas-src = { version = "0.1.2", default-features = false, features = ["openblas"
 openblas-src = { version = "0.5.6", default-features = false, features = ["cblas", "system"] }
 ordered-float = "0.5.0"
 lazy_static = "1.1.0"
+num-traits = "0.2"
 
 [dev-dependencies]
 #clippy = { version = "*" }

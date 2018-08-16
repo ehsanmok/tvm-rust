@@ -7,6 +7,7 @@ use std::slice;
 
 use rust_ndarray;
 use rust_ndarray::ArrayD;
+use num_traits::Num;
 
 use tvm;
 
@@ -104,7 +105,7 @@ impl NDArray {
             panic!("Cannot copy empty array to Vec");
         }
         let earr = empty(&mut self.shape().unwrap(), TVMContext::cpu(0), self.dtype());
-        let target = self.copy_to(earr).unwrap();
+        let target = self.copy_to_ndarray(earr).unwrap();
         let arr = unsafe { *(target.handle) };
         let sz = self.size().unwrap() as usize;
         let mut v: Vec<T> = Vec::with_capacity(sz * mem::size_of::<T>());
@@ -117,18 +118,20 @@ impl NDArray {
     }
 
     pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
-        let sz = data.len();
         check_call!(tvm::TVMArrayCopyFromBytes(
             self.handle,
             data.as_ptr() as *mut _,
             data.len() * mem::size_of::<T>()
         ));
     }
-    // TODO: type check
-    pub fn copy_to(&self, target: NDArray) -> TVMResult<NDArray> {
-        if self.shape().is_none() {
-            panic!("Cannot copy empty array to {}", target.context());
-        }
+
+    pub fn copy_from_ndarray(&mut self, arr: NDArray) {
+        self.copy_to_ndarray(arr).unwrap();
+    }
+
+    pub fn copy_to_ndarray(&self, target: NDArray) -> TVMResult<NDArray> {
+        // TODO: add fmt to TVMType
+        assert_eq!(self.dtype(), target.dtype(), "Copy to ndarray expects dtype {:?}, but given {:?}", self.dtype(), target.dtype());
         check_call!(tvm::TVMArrayCopyFromTo(
             self.handle,
             target.handle,
@@ -137,8 +140,8 @@ impl NDArray {
         Ok(target)
     }
 
-    pub fn from_rust_ndarray(
-        rnd: &ArrayD<f32>,
+    pub fn from_rust_ndarray<T: Num + Copy>(
+        rnd: &ArrayD<T>,
         ctx: TVMContext,
         dtype: TVMType,
     ) -> TVMResult<Self> {
@@ -147,19 +150,20 @@ impl NDArray {
         let mut vec = rust_ndarray::Array::from_iter(rnd.iter())
             .iter()
             .map(|e| **e)
-            .collect::<Vec<f32>>();
+            .collect::<Vec<T>>();
         nd.copy_from_buffer(vec.as_mut_slice());
         Ok(nd)
     }
 }
 
+// TODO: generic?
 impl<'a> TryFrom<&'a NDArray> for ArrayD<f32> {
     type Error = TVMError;
     fn try_from(array: &NDArray) -> TVMResult<ArrayD<f32>> {
         if array.shape().is_none() {
             panic!("Cannot convert from empty array");
         }
-        // TODO: dtype
+        assert_eq!(array.dtype(), TVMType::from("float"), "Conversion from Rust ndarray float32 is allowed");
         Ok(rust_ndarray::Array::from_shape_vec(
             array.shape().unwrap().clone(),
             array.to_vec::<f32>().unwrap(),
@@ -203,6 +207,18 @@ mod tests {
         assert!(ndarray.is_contiguous());
         assert_eq!(ndarray.byte_offset(), 0);
 
+    }
+
+    #[test]
+    #[should_panic]
+    fn copy_wrong_dtype() {
+        let mut shape = vec![4];
+        let mut data = vec![1f32, 2., 3., 4.];
+        let ctx = TVMContext::cpu(0); // TVMContext::gpu(0);
+        let mut nd_float = empty(&mut shape, ctx.clone(), TVMType::from("float"));
+        nd_float.copy_from_buffer(&mut data);
+        let mut empty_int = empty(&mut shape, ctx, TVMType::from("int"));
+        empty_int.copy_from_ndarray(nd_float);
     }
 
     #[test]
