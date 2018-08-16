@@ -4,14 +4,17 @@ use std::mem;
 use std::os::raw::{c_int, c_uint, c_void};
 use std::ptr;
 use std::slice;
+use std::ops::{Deref, DerefMut};
 
-use rust_ndarray;
-use rust_ndarray::ArrayD;
+use rust_ndarray::{Array, ArrayD, Dimension};
 use num_traits::Num;
 
 use tvm;
 
-use super::*;
+use TVMContext;
+use TVMType;
+use TVMResult;
+use TVMError;
 
 #[derive(Debug)]
 pub struct NDArray {
@@ -130,7 +133,7 @@ impl NDArray {
     }
 
     pub fn copy_to_ndarray(&self, target: NDArray) -> TVMResult<NDArray> {
-        assert_eq!(self.dtype(), target.dtype(), "Copy expects ndarray of dtype {}, but given ndarray of {}", self.dtype(), target.dtype());
+        assert_eq!(self.dtype(), target.dtype(), "Copy expects ndarray of dtype {}, but {} ndarray was given", self.dtype(), target.dtype());
         check_call!(tvm::TVMArrayCopyFromTo(
             self.handle,
             target.handle,
@@ -146,7 +149,7 @@ impl NDArray {
     ) -> TVMResult<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
-        let mut vec = rust_ndarray::Array::from_iter(rnd.iter())
+        let mut vec = Array::from_iter(rnd.iter())
             .iter()
             .map(|e| **e)
             .collect::<Vec<T>>();
@@ -155,20 +158,41 @@ impl NDArray {
     }
 }
 
-// TODO: generic?
-impl<'a> TryFrom<&'a NDArray> for ArrayD<f32> {
-    type Error = TVMError;
-    fn try_from(array: &NDArray) -> TVMResult<ArrayD<f32>> {
-        if array.shape().is_none() {
-            panic!("Cannot convert from empty array");
+macro_rules! impl_from_ndarray_rustndarray {
+    ($type:ty, $type_name:tt) => {
+        impl<'a> TryFrom<&'a NDArray> for ArrayD<$type> {
+            type Error = TVMError;
+            fn try_from(nd: &NDArray) -> TVMResult<ArrayD<$type>> {
+                if nd.shape().is_none() {
+                    panic!("Cannot convert from empty array");
+                }
+                assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
+                Ok(Array::from_shape_vec(
+                    nd.shape().unwrap().clone(),
+                    nd.to_vec::<$type>().unwrap(),
+                ).unwrap())
+            }
         }
-        assert_eq!(array.dtype(), TVMType::from("float"), "Conversion from Rust ndarray float32 is allowed");
-        Ok(rust_ndarray::Array::from_shape_vec(
-            array.shape().unwrap().clone(),
-            array.to_vec::<f32>().unwrap(),
-        ).unwrap())
+
+        impl<'a> TryFrom<&'a mut NDArray> for ArrayD<$type> {
+            type Error = TVMError;
+            fn try_from(nd: &mut NDArray) -> TVMResult<ArrayD<$type>> {
+                if nd.shape().is_none() {
+                    panic!("Cannot convert from empty array");
+                }
+                assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
+                Ok(Array::from_shape_vec(
+                    nd.shape().unwrap().clone(),
+                    nd.to_vec::<$type>().unwrap(),
+                ).unwrap())
+            }
+        }
     }
 }
+
+impl_from_ndarray_rustndarray!(i32, "int");
+impl_from_ndarray_rustndarray!(u32, "uint");
+impl_from_ndarray_rustndarray!(f32, "float");
 
 impl Drop for NDArray {
     fn drop(&mut self) {
@@ -183,7 +207,7 @@ mod tests {
     #[test]
     fn basics() {
         let mut shape = vec![1, 2, 3];
-        let ctx = TVMContext::cpu(0); // TVMContext::opencl(0);
+        let ctx = TVMContext::cpu(0);
         let ndarray = empty(&mut shape, ctx, TVMType::from("int"));
         assert_eq!(ndarray.shape().unwrap(), shape);
         assert_eq!(ndarray.size().unwrap(), shape.into_iter().product());
@@ -195,13 +219,12 @@ mod tests {
     #[test]
     fn copy() {
         let mut shape = vec![4];
-        let mut data = vec![1f32, 2., 3., 4.];
-        // let mut data = vec![1i32, 2, 3, 4];
-        let ctx = TVMContext::cpu(0); // TVMContext::gpu(0);
-        let mut ndarray = empty(&mut shape, ctx, TVMType::from("float"));
+        let mut data = vec![1i32, 2, 3, 4];
+        let ctx = TVMContext::cpu(0);
+        let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
         ndarray.copy_from_buffer(&mut data);
         assert_eq!(ndarray.shape(), Some(shape));
-        assert_eq!(ndarray.to_vec::<f32>().unwrap(), data);
+        assert_eq!(ndarray.to_vec::<i32>().unwrap(), data);
         assert_eq!(ndarray.ndim(), 1);
         assert!(ndarray.is_contiguous());
         assert_eq!(ndarray.byte_offset(), 0);
@@ -209,7 +232,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic]
+    #[should_panic(expected = "assertion failed")]
     fn copy_wrong_dtype() {
         let mut shape = vec![4];
         let mut data = vec![1f32, 2., 3., 4.];
@@ -222,14 +245,13 @@ mod tests {
 
     #[test]
     fn rust_ndarray() {
-        let a = rust_ndarray::Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
+        let a = Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
             .unwrap()
             .into_dyn();
         let nd =
             NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
-        println!("ndim: {}, strides: {:?}, byte_offset: {}", nd.ndim(), nd.strides(), nd.byte_offset());
         assert_eq!(nd.shape(), Some(vec![2, 2]));
-        let rnd = rust_ndarray::ArrayD::try_from(&nd).unwrap();
+        let rnd: ArrayD<f32> = ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));
     }
 }
