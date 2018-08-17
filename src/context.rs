@@ -132,6 +132,12 @@ macro_rules! impl_dev_attrs {
     }
 }
 
+impl<'a> From<&'a str> for TVMContext {
+    fn from(target: &str) -> Self {
+        TVMContext::new(TVMDeviceType::from(target), 0)
+    }
+}
+
 impl TVMContext {
     pub fn exist(&self) -> bool {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
