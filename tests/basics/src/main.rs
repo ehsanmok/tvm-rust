@@ -19,6 +19,7 @@ fn main() {
         let mut ret = tvm::ndarray::empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
         let path = Path::new("add_cpu.so");
         let mut fadd = tvm::Module::load(path).unwrap();
+        assert!(fadd.enabled("cpu"));
         fadd = fadd.entry_func();
         tvm::function::Builder::from(&mut fadd)
             .push_arg(&arr)
@@ -41,6 +42,7 @@ fn main() {
         let ptx = Path::new("add_gpu.ptx");
         let mut fadd = tvm::Module::load(path).unwrap();
         let fadd_dep = tvm::Module::load(ptx).unwrap();
+        assert!(fadd.enabled("gpu"), "GPU is not enabled!");
         fadd.import_module(fadd_dep);
         fadd = fadd.entry_func();
         tvm::function::Builder::from(&mut fadd)

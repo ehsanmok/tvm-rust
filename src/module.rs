@@ -8,7 +8,11 @@ use std::ptr;
 
 use tvm;
 
-use super::*;
+use function;
+use function::Function;
+use TVMResult;
+use TVMValue;
+use internal_api;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 
@@ -69,7 +73,14 @@ impl Module {
     }
 
     pub fn enabled(&self, target: &str) -> bool {
-        unimplemented!()
+        let target = target.to_owned();
+        let func = internal_api::get_api("module._Enabled".to_owned());
+        let ret = function::Builder::from(func)
+            .push_arg(&target)
+            .invoke()
+            .unwrap();
+        mem::forget(target);
+        unsafe { ret.value.v_int64 != 0 }
     }
 
     pub fn as_handle(&self) -> tvm::TVMModuleHandle {
@@ -88,7 +99,6 @@ impl Module {
 impl Drop for Module {
     fn drop(&mut self) {
         if !self.is_released {
-            //println!("release module: {:?}", self.handle);
             unsafe { ptr::drop_in_place(self.handle) };
             check_call!(tvm::TVMModFree(self.handle));
             self.is_released = true;
