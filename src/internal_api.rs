@@ -1,7 +1,7 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
 
-use function::Function;
+use Function;
 
 thread_local! {
     pub(crate) static API: RefCell<HashMap<String, Function>> = RefCell::new(HashMap::new());

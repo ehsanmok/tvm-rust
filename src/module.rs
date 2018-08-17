@@ -1,17 +1,12 @@
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::ffi::OsString;
 use std::mem;
-use std::os::raw::{c_char, c_int, c_void};
+use std::os::raw::{c_char, c_int};
 use std::path::Path;
 use std::ptr;
 
 use tvm;
 
-use function;
-use function::Function;
+use function::{self, Function};
 use TVMResult;
-use TVMValue;
 use internal_api;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
@@ -99,7 +94,6 @@ impl Module {
 impl Drop for Module {
     fn drop(&mut self) {
         if !self.is_released {
-            unsafe { ptr::drop_in_place(self.handle) };
             check_call!(tvm::TVMModFree(self.handle));
             self.is_released = true;
         }

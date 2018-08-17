@@ -9,7 +9,6 @@
 #![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
 #![allow(
     non_camel_case_types,
-    unused_imports,
     dead_code,
     unused_variables
 )]
@@ -27,16 +26,10 @@ extern crate tvm_sys as tvm;
 extern crate lazy_static;
 extern crate num_traits;
 
-use std::cell::RefCell;
-use std::collections::HashMap;
-use std::convert::From;
 use std::error::Error;
-use std::ffi::{CStr, CString};
-use std::fmt;
-use std::fmt::{Debug, Display, Formatter};
-use std::hash::{Hash, Hasher};
-use std::os::raw::{c_char, c_int, c_void};
-use std::ptr;
+use std::ffi::CStr;
+use std::fmt::{self, Display, Formatter};
+use std::os::raw::c_char;
 use std::result;
 use std::str;
 

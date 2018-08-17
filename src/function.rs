@@ -1,8 +1,6 @@
-use std::convert::TryFrom;
 use std::ffi::CStr;
-use std::marker::PhantomData;
 use std::mem;
-use std::os::raw::{c_char, c_int, c_uint, c_void};
+use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::slice;
 use std::str;
@@ -13,7 +11,6 @@ use tvm;
 use TVMValue;
 use TypeCode;
 use TVMResult;
-use TVMError;
 use TVMRetValue;
 use TVMArgValue;
 use ValueKind;

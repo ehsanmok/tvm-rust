@@ -1,6 +1,4 @@
-use std::ffi::OsString;
 use std::marker::PhantomData;
-use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::fmt::{self, Formatter, Debug};
 use std::os::raw::{c_void, c_char};

@@ -1,12 +1,10 @@
 use std::convert::TryFrom;
-use std::marker::PhantomData;
 use std::mem;
-use std::os::raw::{c_int, c_uint, c_void};
+use std::os::raw::c_int;
 use std::ptr;
 use std::slice;
-use std::ops::{Deref, DerefMut};
 
-use rust_ndarray::{Array, ArrayD, Dimension};
+use rust_ndarray::{Array, ArrayD};
 use num_traits::Num;
 
 use tvm;

@@ -80,16 +80,6 @@ pub struct TVMContext {
     pub device_id: i32,
 }
 
-macro_rules! impl_context {
-    ($ctx:ident, $dldevt:expr) => {
-        impl TVMContext {
-            pub fn $ctx(device_id: i32) -> Self {
-                Self::new(TVMDeviceType::new($dldevt), device_id)
-            }
-        }
-    }
-}
-
 impl TVMContext {
     pub fn new(device_type: TVMDeviceType, device_id: i32) -> Self {
         TVMContext {
@@ -103,34 +93,26 @@ impl TVMContext {
     }
 }
 
-impl_context!(cpu, tvm::DLDeviceType::kDLCPU);
-impl_context!(cpu_pinned, tvm::DLDeviceType::kDLCPUPinned);
-impl_context!(gpu, tvm::DLDeviceType::kDLGPU);
-impl_context!(cuda, tvm::DLDeviceType::kDLGPU);
-impl_context!(nvptx, tvm::DLDeviceType::kDLGPU);
-impl_context!(cl, tvm::DLDeviceType::kDLOpenCL);
-impl_context!(opencl, tvm::DLDeviceType::kDLOpenCL);
-impl_context!(metal, tvm::DLDeviceType::kDLMetal);
-impl_context!(vpi, tvm::DLDeviceType::kDLVPI);
-impl_context!(rocm, tvm::DLDeviceType::kDLROCM);
-
-macro_rules! impl_dev_attrs {
-    ($attr_name:ident, $attr_kind:expr) => {
+macro_rules! impl_ctx {
+    ($ctx:ident, $dldevt:expr) => {
         impl TVMContext {
-            pub fn $attr_name(&self) -> usize {
-                let func = ::internal_api::get_api("_GetDeviceAttr".to_owned());
-                let dt = self.device_type.inner as i32;
-                let ret = function::Builder::from(func)
-                    .push_arg(&dt)
-                    .push_arg(&self.device_id)
-                    .push_arg(&$attr_kind)
-                    .invoke()
-                    .unwrap();
-                unsafe { ret.value.inner.v_int64 as usize }
+            pub fn $ctx(device_id: i32) -> Self {
+                Self::new(TVMDeviceType::new($dldevt), device_id)
             }
         }
     }
 }
+
+impl_ctx!(cpu, tvm::DLDeviceType::kDLCPU);
+impl_ctx!(cpu_pinned, tvm::DLDeviceType::kDLCPUPinned);
+impl_ctx!(gpu, tvm::DLDeviceType::kDLGPU);
+impl_ctx!(cuda, tvm::DLDeviceType::kDLGPU);
+impl_ctx!(nvptx, tvm::DLDeviceType::kDLGPU);
+impl_ctx!(cl, tvm::DLDeviceType::kDLOpenCL);
+impl_ctx!(opencl, tvm::DLDeviceType::kDLOpenCL);
+impl_ctx!(metal, tvm::DLDeviceType::kDLMetal);
+impl_ctx!(vpi, tvm::DLDeviceType::kDLVPI);
+impl_ctx!(rocm, tvm::DLDeviceType::kDLROCM);
 
 impl<'a> From<&'a str> for TVMContext {
     fn from(target: &str) -> Self {
@@ -158,6 +140,24 @@ impl TVMContext {
             ptr::null_mut() as *mut c_void
         ));
         Ok(())
+    }
+}
+
+macro_rules! impl_dev_attrs {
+    ($attr_name:ident, $attr_kind:expr) => {
+        impl TVMContext {
+            pub fn $attr_name(&self) -> usize {
+                let func = ::internal_api::get_api("_GetDeviceAttr".to_owned());
+                let dt = self.device_type.inner as i32;
+                let ret = function::Builder::from(func)
+                    .push_arg(&dt)
+                    .push_arg(&self.device_id)
+                    .push_arg(&$attr_kind)
+                    .invoke()
+                    .unwrap();
+                unsafe { ret.value.inner.v_int64 as usize }
+            }
+        }
     }
 }
 
