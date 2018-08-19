@@ -23,9 +23,8 @@ extern crate lazy_static;
 extern crate num_traits;
 
 use std::error::Error;
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::fmt::{self, Display, Formatter};
-use std::os::raw::c_char;
 use std::result;
 use std::str;
 
@@ -38,7 +37,6 @@ macro_rules! check_call {
     }};
 }
 
-// TODO: make it robust thread_local for ffi set
 /// TVM error type
 #[derive(Debug)]
 pub struct TVMError {
@@ -60,8 +58,9 @@ impl TVMError {
     }
 
     pub fn set_last(msg: &'static str) {
+        let c_string = CString::new(msg).unwrap();
         unsafe {
-            tvm::TVMAPISetLastError(msg.as_ptr() as *const c_char);
+            tvm::TVMAPISetLastError(c_string.as_ptr());
         }
     }
 }
@@ -113,10 +112,9 @@ mod tests {
         println!("TVM version: {}", version());
     }
 
-    // TODO: fix
-    //#[test]
+    #[test]
     fn set_error() {
-        let msg: &'static str = "Invalid";
+        let msg: &'static str = "invalid error message";
         TVMError::set_last(msg);
         assert_eq!(TVMError::get_last().trim(), msg);
     }
