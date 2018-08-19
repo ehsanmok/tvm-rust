@@ -1,11 +1,11 @@
 use std::ffi::OsString;
+use std::fmt::{self, Display, Formatter};
 use std::ops::{Deref, DerefMut};
-use std::fmt::{self, Formatter, Display};
 
 use tvm;
 
-use module::Module;
 use function::Function;
+use module::Module;
 use ndarray::NDArray;
 use TVMContext;
 
@@ -137,11 +137,27 @@ impl<'a> From<&'a str> for TVMType {
 impl Display for TVMType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self.inner {
-            tvm::TVMType { code: 0, bits: 32, lanes: 1 } => write!(f, "int"),
-            tvm::TVMType { code: 1, bits: 32, lanes: 1 } => write!(f, "uint"),
-            tvm::TVMType { code: 2, bits: 32, lanes: 1 } => write!(f, "float"),
-            tvm::TVMType { code: 4, bits: 64, lanes: 1 } => write!(f, "handle"),
-            _ => write!(f, "Unknown type")
+            tvm::TVMType {
+                code: 0,
+                bits: 32,
+                lanes: 1,
+            } => write!(f, "int"),
+            tvm::TVMType {
+                code: 1,
+                bits: 32,
+                lanes: 1,
+            } => write!(f, "uint"),
+            tvm::TVMType {
+                code: 2,
+                bits: 32,
+                lanes: 1,
+            } => write!(f, "float"),
+            tvm::TVMType {
+                code: 4,
+                bits: 64,
+                lanes: 1,
+            } => write!(f, "handle"),
+            _ => write!(f, "Unknown type"),
         }
     }
 }

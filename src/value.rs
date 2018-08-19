@@ -1,15 +1,15 @@
+use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::ops::{Deref, DerefMut};
-use std::fmt::{self, Formatter, Debug};
-use std::os::raw::{c_void, c_char};
+use std::os::raw::{c_char, c_void};
 
 use tvm;
 
-use TypeCode;
-use NDArray;
 use Function;
 use Module;
+use NDArray;
 use TVMContext;
+use TypeCode;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub(crate) enum ValueKind {

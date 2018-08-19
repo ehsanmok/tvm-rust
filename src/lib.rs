@@ -7,11 +7,7 @@
 // except according to those terms.
 #![crate_name = "tvm_rust"]
 #![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
-#![allow(
-    non_camel_case_types,
-    dead_code,
-    unused_variables
-)]
+#![allow(non_camel_case_types, dead_code, unused_variables)]
 #![feature(try_from, fn_traits, unboxed_closures, box_syntax)]
 
 //! [WIP]

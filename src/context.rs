@@ -1,13 +1,13 @@
-use std::fmt::{self, Formatter, Display};
+use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_void;
 use std::ptr;
 
 use tvm;
 
-use internal_api;
 use function;
-use TVMValue;
+use internal_api;
 use TVMResult;
+use TVMValue;
 
 #[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
 pub struct TVMDeviceType {
@@ -100,7 +100,7 @@ macro_rules! impl_ctx {
                 Self::new(TVMDeviceType::new($dldevt), device_id)
             }
         }
-    }
+    };
 }
 
 impl_ctx!(cpu, tvm::DLDeviceType::kDLCPU);
@@ -158,7 +158,7 @@ macro_rules! impl_dev_attrs {
                 unsafe { ret.value.inner.v_int64 as usize }
             }
         }
-    }
+    };
 }
 
 impl_dev_attrs!(max_threads_per_block, 1);
@@ -223,7 +223,10 @@ mod tests {
         assert!(ctx.exist());
         println!("max thread per block: {}", ctx.max_threads_per_block());
         println!("warp size: {}", ctx.warp_size());
-        println!("max shared memory per block: {}", ctx.max_shared_memory_per_block());
+        println!(
+            "max shared memory per block: {}",
+            ctx.max_shared_memory_per_block()
+        );
         println!("compute version: {}", ctx.compute_version());
         println!("device name: {}", ctx.device_name());
         println!("max clock rate: {}", ctx.max_clock_rate());

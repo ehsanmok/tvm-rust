@@ -6,8 +6,8 @@ use std::ptr;
 use tvm;
 
 use function::{self, Function};
-use TVMResult;
 use internal_api;
+use TVMResult;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 

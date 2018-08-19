@@ -4,15 +4,15 @@ use std::os::raw::c_int;
 use std::ptr;
 use std::slice;
 
-use rust_ndarray::{Array, ArrayD};
 use num_traits::Num;
+use rust_ndarray::{Array, ArrayD};
 
 use tvm;
 
 use TVMContext;
-use TVMType;
-use TVMResult;
 use TVMError;
+use TVMResult;
+use TVMType;
 
 #[derive(Debug)]
 pub struct NDArray {
@@ -83,12 +83,14 @@ impl NDArray {
     }
 
     pub fn strides(&self) -> Option<Vec<usize>> {
-        unsafe { (*self.handle).strides.as_mut().map(|pv| {
-            let sz = self.ndim();
-            let mut v: Vec<usize> = Vec::with_capacity(sz * mem::size_of::<usize>());
-            v.as_mut_ptr().copy_from_nonoverlapping(pv as *mut _ as *const _, sz);
-            v.set_len(sz);
-            v
+        unsafe {
+            (*self.handle).strides.as_mut().map(|pv| {
+                let sz = self.ndim();
+                let mut v: Vec<usize> = Vec::with_capacity(sz * mem::size_of::<usize>());
+                v.as_mut_ptr()
+                    .copy_from_nonoverlapping(pv as *mut _ as *const _, sz);
+                v.set_len(sz);
+                v
             })
         }
     }
@@ -131,7 +133,13 @@ impl NDArray {
     }
 
     pub fn copy_to_ndarray(&self, target: NDArray) -> TVMResult<NDArray> {
-        assert_eq!(self.dtype(), target.dtype(), "Copy expects ndarray of dtype {}, but {} ndarray was given", self.dtype(), target.dtype());
+        assert_eq!(
+            self.dtype(),
+            target.dtype(),
+            "Copy expects ndarray of dtype {}, but {} ndarray was given",
+            self.dtype(),
+            target.dtype()
+        );
         check_call!(tvm::TVMArrayCopyFromTo(
             self.handle,
             target.handle,
@@ -185,7 +193,7 @@ macro_rules! impl_from_ndarray_rustndarray {
                 ).unwrap())
             }
         }
-    }
+    };
 }
 
 impl_from_ndarray_rustndarray!(i32, "int");
@@ -226,7 +234,6 @@ mod tests {
         assert_eq!(ndarray.ndim(), 1);
         assert!(ndarray.is_contiguous());
         assert_eq!(ndarray.byte_offset(), 0);
-
     }
 
     #[test]

@@ -8,13 +8,13 @@ use std::sync::Mutex;
 
 use tvm;
 
-use TVMValue;
-use TypeCode;
+use Module;
+use TVMArgValue;
 use TVMResult;
 use TVMRetValue;
-use TVMArgValue;
+use TVMValue;
+use TypeCode;
 use ValueKind;
-use Module;
 
 lazy_static! {
     static ref GLOBAL_FUNCTION_NAMES: Mutex<Vec<&'static str>> = list_global_func_names();
