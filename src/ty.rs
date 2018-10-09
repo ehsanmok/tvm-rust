@@ -87,6 +87,7 @@ impl_prim_type!(TVMType, kTVMType);
 impl_prim_type!(Function, kFuncHandle);
 impl_prim_type!(Module, kModuleHandle);
 impl_prim_type!(NDArray, kArrayHandle);
+impl_prim_type!([u8], kBytes);
 
 impl_prim_type!(i64, kDLInt, mut);
 impl_prim_type!(i32, kDLInt, mut);
@@ -104,6 +105,7 @@ impl_prim_type!(TVMType, kTVMType, mut);
 impl_prim_type!(Function, kFuncHandle, mut);
 impl_prim_type!(Module, kModuleHandle, mut);
 impl_prim_type!(NDArray, kArrayHandle, mut);
+impl_prim_type!([u8], kBytes, mut);
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct TVMType {

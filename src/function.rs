@@ -38,7 +38,11 @@ fn list_global_func_names() -> Mutex<Vec<&'static str>> {
     Mutex::new(list)
 }
 
-fn get_global_func(name: &'static str, is_global: bool, allow_missing: bool) -> Option<Function> {
+pub fn get_global_func(
+    name: &'static str,
+    is_global: bool,
+    allow_missing: bool,
+) -> Option<Function> {
     let name = name.to_owned();
     let mut handle = ptr::null_mut() as tvm::TVMFunctionHandle;
     check_call!(tvm::TVMFuncGetGlobal(
@@ -133,7 +137,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
     type Output = TVMResult<TVMRetValue<'a>>;
     extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
         if self.func.is_none() {
-            panic!("Function handle is None")
+            panic!("Function handle is None");
         }
         let mut ret_val = tvm::TVMValue { v_int64: 0 };
         let mut ret_type_code = 0;
@@ -211,7 +215,7 @@ impl Function {
     }
 
     pub fn as_handle(&self) -> tvm::TVMFunctionHandle {
-        self.handle.clone()
+        self.handle
     }
 
     pub fn is_global(&self) -> bool {

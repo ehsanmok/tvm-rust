@@ -7,19 +7,24 @@ use tvm;
 
 use function::{self, Function};
 use internal_api;
+use TVMError;
 use TVMResult;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 
 #[derive(Debug, Clone)]
 pub struct Module {
-    handle: tvm::TVMModuleHandle,
+    pub(crate) handle: tvm::TVMModuleHandle,
     is_released: bool,
     pub(crate) entry: Option<Function>,
 }
 
 impl Module {
-    fn new(handle: tvm::TVMModuleHandle, is_released: bool, entry: Option<Function>) -> Self {
+    pub(crate) fn new(
+        handle: tvm::TVMModuleHandle,
+        is_released: bool,
+        entry: Option<Function>,
+    ) -> Self {
         Self {
             handle,
             is_released,
@@ -34,7 +39,7 @@ impl Module {
         self
     }
 
-    pub fn get_function(&mut self, name: String, query_import: bool) -> TVMResult<Function> {
+    pub fn get_function(&self, name: String, query_import: bool) -> TVMResult<Function> {
         let name = name.to_owned();
         let query_import = if query_import == true { 1 } else { 0 };
         let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
@@ -45,7 +50,7 @@ impl Module {
             &mut fhandle as *mut _
         ));
         if fhandle.is_null() {
-            panic!("function handle is null for {}", name);
+            return Err(TVMError::new(stringify!("function handle is null for {}", name)));
         } else {
             mem::forget(name);
             Ok(Function::new(fhandle, false, false))
@@ -75,7 +80,7 @@ impl Module {
             .invoke()
             .unwrap();
         mem::forget(target);
-        unsafe { ret.value.v_int64 != 0 }
+        ret.to_int() != 0
     }
 
     pub fn as_handle(&self) -> tvm::TVMModuleHandle {
@@ -84,10 +89,6 @@ impl Module {
 
     pub fn is_released(&self) -> bool {
         self.is_released
-    }
-
-    pub fn as_module(&self) -> Self {
-        self.clone()
     }
 }
 
