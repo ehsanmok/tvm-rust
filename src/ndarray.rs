@@ -28,7 +28,7 @@ pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray
         dtype.inner.code as c_int,
         dtype.inner.bits as c_int,
         dtype.inner.lanes as c_int,
-        ctx.device_type.inner as c_int,
+        ctx.device_type.0 as c_int,
         ctx.device_id as c_int,
         &mut handle as *mut _,
     ));
@@ -105,7 +105,7 @@ impl NDArray {
 
     pub fn to_vec<T>(&self) -> TVMResult<Vec<T>> {
         if self.shape().is_none() {
-            panic!("Cannot copy empty array to Vec");
+            return Err(TVMError::new("Cannot copy empty array to Vec"));
         }
         let earr = empty(&mut self.shape().unwrap(), TVMContext::cpu(0), self.dtype());
         let target = self.copy_to_ndarray(earr).unwrap();
@@ -136,7 +136,7 @@ impl NDArray {
         assert_eq!(
             self.dtype(),
             target.dtype(),
-            "Copy expects ndarray of dtype {}, but {} ndarray was given",
+            "Copy expects ndarray of dtype {}, but ndarray of dtype {} was given",
             self.dtype(),
             target.dtype()
         );
@@ -228,6 +228,7 @@ mod tests {
         let mut data = vec![1i32, 2, 3, 4];
         let ctx = TVMContext::cpu(0);
         let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
+        assert!(ndarray.to_vec::<i32>().is_ok());
         ndarray.copy_from_buffer(&mut data);
         assert_eq!(ndarray.shape(), Some(shape));
         assert_eq!(ndarray.to_vec::<i32>().unwrap(), data);

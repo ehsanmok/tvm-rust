@@ -1,5 +1,7 @@
+use std::ffi::CStr;
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
+use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_char, c_void};
 
@@ -8,7 +10,6 @@ use tvm;
 use Function;
 use Module;
 use NDArray;
-use TVMContext;
 use TypeCode;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
@@ -32,6 +33,10 @@ pub struct TVMValue {
 impl TVMValue {
     pub(crate) fn new(kind: ValueKind, inner: tvm::TVMValue) -> Self {
         TVMValue { kind, inner }
+    }
+
+    pub fn to_int(&self) -> i64 {
+        unsafe { self.inner.v_int64 }
     }
 }
 
@@ -68,7 +73,6 @@ impl_prim_val!(u64, ValueKind::Int, v_int64);
 impl_prim_val!(u32, ValueKind::Int, v_int64);
 impl_prim_val!(u8, ValueKind::Int, v_int64);
 impl_prim_val!(bool, ValueKind::Int, v_int64);
-impl_prim_val!(tvm::DLDeviceType, ValueKind::Int, v_int64);
 
 impl_prim_val_mut!(i64, ValueKind::Int, v_int64);
 impl_prim_val_mut!(i32, ValueKind::Int, v_int64);
@@ -77,7 +81,24 @@ impl_prim_val_mut!(u64, ValueKind::Int, v_int64);
 impl_prim_val_mut!(u32, ValueKind::Int, v_int64);
 impl_prim_val_mut!(u8, ValueKind::Int, v_int64);
 impl_prim_val_mut!(bool, ValueKind::Int, v_int64);
-impl_prim_val_mut!(tvm::DLDeviceType, ValueKind::Int, v_int64);
+
+impl<'a> From<&'a [u8]> for TVMValue {
+    fn from(arg: &[u8]) -> TVMValue {
+        let inner = tvm::TVMValue {
+            v_handle: arg.as_ptr() as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
+
+impl<'a> From<&'a mut [u8]> for TVMValue {
+    fn from(arg: &mut [u8]) -> TVMValue {
+        let inner = tvm::TVMValue {
+            v_handle: arg.as_mut_ptr() as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
 
 impl<'a> From<&'a str> for TVMValue {
     fn from(arg: &str) -> TVMValue {
@@ -124,10 +145,19 @@ impl<T> From<*const T> for TVMValue {
     }
 }
 
+impl<'a> From<&'a Module> for TVMValue {
+    fn from(arg: &Module) -> Self {
+        let inner = tvm::TVMValue {
+            v_handle: arg.handle as *mut _ as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
+
 impl<'a> From<&'a mut Module> for TVMValue {
     fn from(arg: &mut Module) -> Self {
         let inner = tvm::TVMValue {
-            v_handle: arg as *mut _ as *mut c_void,
+            v_handle: arg.handle as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -157,18 +187,6 @@ impl<'a> From<&'a NDArray> for TVMValue {
             v_handle: arr.handle as *const _ as *mut tvm::TVMArray as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
-    }
-}
-
-impl<'a> From<&'a TVMContext> for TVMValue {
-    fn from(ctx: &TVMContext) -> Self {
-        let inner = tvm::TVMValue {
-            v_ctx: tvm::TVMContext {
-                device_type: ctx.device_type.into(),
-                device_id: ctx.device_id,
-            },
-        };
-        Self::new(ValueKind::Context, inner)
     }
 }
 
@@ -239,7 +257,7 @@ impl DerefMut for TVMValue {
 pub struct TVMArgValue<'a> {
     pub value: TVMValue,
     pub type_code: TypeCode,
-    _marker: PhantomData<&'a ()>,
+    _lifetime: PhantomData<&'a ()>,
 }
 
 impl<'a> TVMArgValue<'a> {
@@ -247,7 +265,66 @@ impl<'a> TVMArgValue<'a> {
         TVMArgValue {
             value: value,
             type_code: type_code,
-            _marker: PhantomData,
+            _lifetime: PhantomData,
+        }
+    }
+
+    pub fn to_int(&self) -> i64 {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kDLInt,
+            "Requires i64, but given {}",
+            self.type_code
+        );
+        unsafe { self.value.inner.v_int64 }
+    }
+
+    pub fn to_float(&self) -> f64 {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kDLFloat,
+            "Requires f64, but given {}",
+            self.type_code
+        );
+        unsafe { self.value.inner.v_float64 }
+    }
+
+    pub fn to_bytes(&self) -> Box<[u8]> {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kBytes,
+            "Requires byte array, but given {}",
+            self.type_code
+        );
+        let arr = unsafe { mem::transmute::<*mut c_void, *mut i8>(self.value.inner.v_handle) };
+        let barr: &[u8] = unsafe { CStr::from_ptr(arr).to_bytes() };
+        barr.to_vec().into_boxed_slice()
+    }
+
+    pub fn to_module(&self) -> Module {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kModuleHandle,
+            "Requires module handle, given {}",
+            self.type_code
+        );
+        let module_handle = unsafe { self.value.inner.v_handle };
+        Module::new(module_handle, false, None)
+    }
+
+    pub fn to_str(&self) -> &str {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kStr,
+            "Requires string, given {}",
+            self.type_code
+        );
+        let sptr: *const c_char = unsafe { self.value.inner.v_str };
+        unsafe {
+            match CStr::from_ptr(sptr).to_str() {
+                Ok(s) => s,
+                Err(_) => "Invalid UTF-8 message",
+            }
         }
     }
 }

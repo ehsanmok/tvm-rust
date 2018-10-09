@@ -7,47 +7,41 @@ use tvm;
 use function;
 use internal_api;
 use TVMResult;
-use TVMValue;
 
-#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq)]
-pub struct TVMDeviceType {
-    pub(crate) inner: tvm::DLDeviceType,
-}
-
-impl TVMDeviceType {
-    pub(crate) fn new(device_type: tvm::DLDeviceType) -> Self {
-        TVMDeviceType { inner: device_type }
-    }
-}
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct TVMDeviceType(pub usize);
 
 impl Default for TVMDeviceType {
     fn default() -> Self {
-        TVMDeviceType::new(tvm::DLDeviceType::kDLCPU)
-    }
-}
-
-impl From<TVMDeviceType> for tvm::DLDeviceType {
-    fn from(device_type: TVMDeviceType) -> Self {
-        device_type.inner
+        TVMDeviceType(1)
     }
 }
 
 impl From<tvm::DLDeviceType> for TVMDeviceType {
     fn from(device_type: tvm::DLDeviceType) -> Self {
-        TVMDeviceType::new(device_type)
+        match device_type {
+            tvm::DLDeviceType::kDLCPU => TVMDeviceType(1),
+            tvm::DLDeviceType::kDLGPU => TVMDeviceType(2),
+            tvm::DLDeviceType::kDLCPUPinned => TVMDeviceType(3),
+            tvm::DLDeviceType::kDLOpenCL => TVMDeviceType(4),
+            tvm::DLDeviceType::kDLMetal => TVMDeviceType(8),
+            tvm::DLDeviceType::kDLVPI => TVMDeviceType(9),
+            tvm::DLDeviceType::kDLROCM => TVMDeviceType(10),
+        }
     }
 }
 
 impl Display for TVMDeviceType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self.inner {
-            tvm::DLDeviceType::kDLCPU => write!(f, "cpu"),
-            tvm::DLDeviceType::kDLCPUPinned => write!(f, "cpu_pinned"),
-            tvm::DLDeviceType::kDLGPU => write!(f, "gpu"),
-            tvm::DLDeviceType::kDLOpenCL => write!(f, "opencl"),
-            tvm::DLDeviceType::kDLMetal => write!(f, "meta"),
-            tvm::DLDeviceType::kDLVPI => write!(f, "vpi"),
-            tvm::DLDeviceType::kDLROCM => write!(f, "rocm"),
+        match self {
+            TVMDeviceType(1) => write!(f, "cpu"),
+            TVMDeviceType(2) => write!(f, "gpu"),
+            TVMDeviceType(3) => write!(f, "cpu_pinned"),
+            TVMDeviceType(4) => write!(f, "opencl"),
+            TVMDeviceType(8) => write!(f, "meta"),
+            TVMDeviceType(9) => write!(f, "vpi"),
+            TVMDeviceType(10) => write!(f, "rocm"),
+            TVMDeviceType(_) => write!(f, "rpc"),
         }
     }
 }
@@ -55,17 +49,17 @@ impl Display for TVMDeviceType {
 impl<'a> From<&'a str> for TVMDeviceType {
     fn from(type_str: &'a str) -> Self {
         match type_str {
-            "cpu" => Self::new(tvm::DLDeviceType::kDLCPU),
-            "llvm" => Self::new(tvm::DLDeviceType::kDLCPU),
-            "stackvm" => Self::new(tvm::DLDeviceType::kDLCPU),
-            "gpu" => Self::new(tvm::DLDeviceType::kDLGPU),
-            "cuda" => Self::new(tvm::DLDeviceType::kDLGPU),
-            "nvptx" => Self::new(tvm::DLDeviceType::kDLGPU),
-            "cl" => Self::new(tvm::DLDeviceType::kDLOpenCL),
-            "opencl" => Self::new(tvm::DLDeviceType::kDLOpenCL),
-            "metal" => Self::new(tvm::DLDeviceType::kDLMetal),
-            "vpi" => Self::new(tvm::DLDeviceType::kDLVPI),
-            "rocm" => Self::new(tvm::DLDeviceType::kDLROCM),
+            "cpu" => TVMDeviceType(1),
+            "llvm" => TVMDeviceType(1),
+            "stackvm" => TVMDeviceType(1),
+            "gpu" => TVMDeviceType(2),
+            "cuda" => TVMDeviceType(2),
+            "nvptx" => TVMDeviceType(2),
+            "cl" => TVMDeviceType(4),
+            "opencl" => TVMDeviceType(4),
+            "metal" => TVMDeviceType(8),
+            "vpi" => TVMDeviceType(9),
+            "rocm" => TVMDeviceType(10),
             _ => panic!("{:?} not supported!", type_str),
         }
     }
@@ -97,22 +91,22 @@ macro_rules! impl_ctx {
     ($ctx:ident, $dldevt:expr) => {
         impl TVMContext {
             pub fn $ctx(device_id: i32) -> Self {
-                Self::new(TVMDeviceType::new($dldevt), device_id)
+                Self::new(TVMDeviceType($dldevt), device_id)
             }
         }
     };
 }
 
-impl_ctx!(cpu, tvm::DLDeviceType::kDLCPU);
-impl_ctx!(cpu_pinned, tvm::DLDeviceType::kDLCPUPinned);
-impl_ctx!(gpu, tvm::DLDeviceType::kDLGPU);
-impl_ctx!(cuda, tvm::DLDeviceType::kDLGPU);
-impl_ctx!(nvptx, tvm::DLDeviceType::kDLGPU);
-impl_ctx!(cl, tvm::DLDeviceType::kDLOpenCL);
-impl_ctx!(opencl, tvm::DLDeviceType::kDLOpenCL);
-impl_ctx!(metal, tvm::DLDeviceType::kDLMetal);
-impl_ctx!(vpi, tvm::DLDeviceType::kDLVPI);
-impl_ctx!(rocm, tvm::DLDeviceType::kDLROCM);
+impl_ctx!(cpu, 1);
+impl_ctx!(gpu, 2);
+impl_ctx!(cpu_pinned, 3);
+impl_ctx!(cuda, 2);
+impl_ctx!(nvptx, 2);
+impl_ctx!(cl, 4);
+impl_ctx!(opencl, 4);
+impl_ctx!(metal, 8);
+impl_ctx!(vpi, 9);
+impl_ctx!(rocm, 10);
 
 impl<'a> From<&'a str> for TVMContext {
     fn from(target: &str) -> Self {
@@ -123,19 +117,19 @@ impl<'a> From<&'a str> for TVMContext {
 impl TVMContext {
     pub fn exist(&self) -> bool {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
-        let dt = self.device_type.inner as i32;
+        let dt = self.device_type.0 as i32;
         let ret = function::Builder::from(func)
             .push_arg(&dt)
             .push_arg(&self.device_id)
             .push_arg(&0)
             .invoke()
             .unwrap();
-        ret.value != TVMValue::default()
+        ret.to_int() != 0
     }
 
     pub fn sync(&self) -> TVMResult<()> {
         check_call!(tvm::TVMSynchronize(
-            self.device_type.inner as i32,
+            self.device_type.0 as i32,
             self.device_id,
             ptr::null_mut() as *mut c_void
         ));
@@ -148,14 +142,14 @@ macro_rules! impl_dev_attrs {
         impl TVMContext {
             pub fn $attr_name(&self) -> usize {
                 let func = ::internal_api::get_api("_GetDeviceAttr".to_owned());
-                let dt = self.device_type.inner as i32;
+                let dt = self.device_type.0 as i32;
                 let ret = function::Builder::from(func)
                     .push_arg(&dt)
                     .push_arg(&self.device_id)
                     .push_arg(&$attr_kind)
                     .invoke()
                     .unwrap();
-                unsafe { ret.value.inner.v_int64 as usize }
+                ret.to_int() as usize
             }
         }
     };
@@ -170,19 +164,10 @@ impl_dev_attrs!(max_clock_rate, 6);
 impl_dev_attrs!(multi_processor_count, 7);
 impl_dev_attrs!(max_thread_dimensions, 8);
 
-impl From<TVMContext> for tvm::DLContext {
-    fn from(ctx: TVMContext) -> Self {
-        tvm::DLContext {
-            device_type: tvm::DLDeviceType::from(ctx.device_type),
-            device_id: ctx.device_id,
-        }
-    }
-}
-
 impl From<tvm::DLContext> for TVMContext {
     fn from(ctx: tvm::DLContext) -> Self {
         TVMContext {
-            device_type: ctx.device_type.into(),
+            device_type: TVMDeviceType::from(ctx.device_type),
             device_id: ctx.device_id,
         }
     }
@@ -202,7 +187,7 @@ mod tests {
     fn context() {
         let ctx = TVMContext::cpu(0);
         println!("ctx: {}", ctx);
-        let default_ctx = TVMContext::new(TVMDeviceType::new(tvm::DLDeviceType::kDLCPU), 0);
+        let default_ctx = TVMContext::new(TVMDeviceType(1), 0);
         assert_eq!(ctx.current_context().clone(), default_ctx);
         assert_ne!(ctx, TVMContext::gpu(0));
 
