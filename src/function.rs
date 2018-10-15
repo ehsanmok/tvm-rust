@@ -1,6 +1,7 @@
+use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::mem;
-use std::os::raw::{c_char, c_int};
+use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
 use std::slice;
 use std::str;
@@ -10,6 +11,7 @@ use tvm;
 
 use Module;
 use TVMArgValue;
+use TVMError;
 use TVMResult;
 use TVMRetValue;
 use TVMValue;
@@ -227,6 +229,89 @@ impl Function {
     }
 }
 
+// macro_rules! tvm_callback {
+//     { $fn_name:ident, $cb:item } => (
+//         unsafe extern "C" fn $fn_name(
+//             args: *mut tvm::TVMValue,
+//             type_codes: *mut c_int,
+//             num_args: c_int,
+//             ret: tvm::TVMRetValueHandle,
+//             resource_handle: *mut c_void,
+//         ) -> c_int {
+//             let mut value = tvm::TVMValue { v_int64: 0 };
+//             let mut tcode = 0;
+//             let mut rargs = vec![];
+//             for arg in 0..num_args {
+//                 // handle TVMCbArgToReturn
+//                 rargs.push(args);
+//             }
+
+//             let local_rfn = unsafe { *resource_handle };
+//             let rv = local_rfn(rargs); // --> so local_rfn must return Result<TVMRetValue>
+//             // handle rv error! --> TVMAPISetLastError --> return -1
+//             match rv {
+//                 Ok(_) => { ... },
+//                 Err(msg) => TVMError::set_last(msg),
+//             }
+
+//             check_call!(tvm::TVMCFuncSetReturn(ret,
+//                                                 &mut value as *mut _,
+//                                                 &mut tcode as *mut _,
+//                                                 1))
+
+//             // how to wrap the ret idomatically?
+//             // TVMRetValue::new(TVMValue::from(&ret), TypeCode::from(&ret))
+//             0
+//         }
+//     )
+// }
+
+macro_rules! register_func {
+    {
+        $(#[$m:meta])*
+        fn $fn_name:ident($arg_name:ident : $arg_ty:ty) -> $ret:ty {
+            $($code:tt)*
+        }
+    } => {
+        $(#[$m])*
+        unsafe extern "C" fn $fn_name(args: $arg_ty.inner as *tvm::TVMValue)
+
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct BackendPackedCFunc {
+    pub func: tvm::TVMPackedCFunc,
+    pub finalizer: tvm::TVMPackedCFuncFinalizer,
+}
+
+impl BackendPackedCFunc {
+    pub fn new(func: tvm::TVMPackedCFunc, finalizer: tvm::TVMPackedCFuncFinalizer) -> Self {
+        Self { func, finalizer }
+    }
+}
+
+/// Convert `BackendPackedCFunc` to `Function`
+impl<'a> TryFrom<&'a mut BackendPackedCFunc> for Function {
+    type Error = TVMError;
+    fn try_from(packed: &mut BackendPackedCFunc) -> TVMResult<Self> {
+        packed
+            .func
+            .take()
+            .map(|func| {
+                let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
+                let resource_handle = ptr::null_mut() as *mut c_void;
+                check_call!(tvm::TVMFuncCreateFromCFunc(
+                    Some(func),
+                    resource_handle,
+                    packed.finalizer,
+                    &mut fhandle as *mut _
+                ));
+                Function::new(fhandle, false, false)
+            }).ok_or(TVMError::new("Packed function is not provided"))
+    }
+}
+
 impl Drop for Function {
     fn drop(&mut self) {
         if !self.is_released {
@@ -273,5 +358,19 @@ mod tests {
         func = func.push_arg(&10).push_arg("test");
         assert!(func.arg_buf.is_some());
         assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(2));
+    }
+
+    fn reg_func() {
+        register_func!{ 
+            False,
+        fn sum(args: &[TVMArgValue]) -> TVMResult<TVMRetValue<'static>> {
+            let mut ret = 0;
+            for arg in args.iter() {
+                ret += arg.to_int();
+            }
+
+            let ret_val = TVMRetValue::new(TVMValue::from(&ret), TypeCode::from(&ret));
+            Ok(ret_val)
+        }};
     }
 }
