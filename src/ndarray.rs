@@ -176,7 +176,8 @@ macro_rules! impl_from_ndarray_rustndarray {
                 Ok(Array::from_shape_vec(
                     nd.shape().unwrap().clone(),
                     nd.to_vec::<$type>().unwrap(),
-                ).unwrap())
+                )
+                .unwrap())
             }
         }
 
@@ -190,7 +191,8 @@ macro_rules! impl_from_ndarray_rustndarray {
                 Ok(Array::from_shape_vec(
                     nd.shape().unwrap().clone(),
                     nd.to_vec::<$type>().unwrap(),
-                ).unwrap())
+                )
+                .unwrap())
             }
         }
     };

@@ -50,7 +50,10 @@ impl Module {
             &mut fhandle as *mut _
         ));
         if fhandle.is_null() {
-            return Err(TVMError::new(stringify!("function handle is null for {}", name)));
+            return Err(TVMError::new(stringify!(
+                "function handle is null for {}",
+                name
+            )));
         } else {
             mem::forget(name);
             Ok(Function::new(fhandle, false, false))
