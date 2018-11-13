@@ -1,3 +1,5 @@
+extern crate tvm_sys as ts;
+
 use std::convert::TryFrom;
 use std::ffi::CStr;
 use std::ffi::CString;
@@ -7,8 +9,6 @@ use std::ptr;
 use std::slice;
 use std::str;
 use std::sync::Mutex;
-
-use tvm;
 
 use Module;
 use TVMArgValue;
@@ -27,7 +27,7 @@ fn list_global_func_names() -> Mutex<Vec<&'static str>> {
     let mut out_size = 0 as c_int;
     let mut name = ptr::null() as *const c_char;
     let mut out_array = &mut name as *mut _;
-    check_call!(tvm::TVMFuncListGlobalNames(
+    check_call!(ts::TVMFuncListGlobalNames(
         &mut out_size as *mut _,
         &mut out_array as *mut _
     ));
@@ -43,8 +43,8 @@ fn list_global_func_names() -> Mutex<Vec<&'static str>> {
 
 pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
     let name = CString::new(name).unwrap();
-    let mut handle = ptr::null_mut() as tvm::TVMFunctionHandle;
-    check_call!(tvm::TVMFuncGetGlobal(
+    let mut handle = ptr::null_mut() as ts::TVMFunctionHandle;
+    check_call!(ts::TVMFuncGetGlobal(
         name.as_ptr() as *const c_char,
         &mut handle as *mut _
     ));
@@ -62,13 +62,13 @@ pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Opti
 
 #[derive(Debug, Clone, Hash)]
 pub struct Function {
-    handle: tvm::TVMFunctionHandle,
+    handle: ts::TVMFunctionHandle,
     is_global: bool,
     is_released: bool,
 }
 
 impl Function {
-    pub fn new(handle: tvm::TVMFunctionHandle, is_global: bool, is_released: bool) -> Self {
+    pub fn new(handle: ts::TVMFunctionHandle, is_global: bool, is_released: bool) -> Self {
         Function {
             handle: handle,
             is_global: is_global,
@@ -85,7 +85,7 @@ impl Function {
             .map(|nm| get_global_func(nm, is_global, allow_missing).unwrap())
     }
 
-    pub fn as_handle(&self) -> tvm::TVMFunctionHandle {
+    pub fn as_handle(&self) -> ts::TVMFunctionHandle {
         self.handle
     }
 
@@ -102,7 +102,7 @@ impl Drop for Function {
     fn drop(&mut self) {
         if !self.is_released {
             if !self.is_global {
-                check_call!(tvm::TVMFuncFree(self.handle));
+                check_call!(ts::TVMFuncFree(self.handle));
                 self.is_released = true;
             }
         }
@@ -187,14 +187,14 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
         if self.func.is_none() {
             panic!("Function handle is None");
         }
-        let mut ret_val = tvm::TVMValue { v_int64: 0 };
+        let mut ret_val = ts::TVMValue { v_int64: 0 };
         let mut ret_type_code = 0;
         let arg_buf = self.arg_buf.clone().unwrap();
         let mut num_args = arg_buf.len();
         let mut values = arg_buf
             .iter()
             .map(|tav| tav.clone().value.inner)
-            .collect::<Vec<tvm::TVMValue>>();
+            .collect::<Vec<ts::TVMValue>>();
         let mut tcodes = arg_buf
             .iter()
             .map(|tav| tav.clone().type_code as c_int)
@@ -209,7 +209,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
         }
         values.truncate(num_args);
         tcodes.truncate(num_args);
-        check_call!(tvm::TVMFuncCall(
+        check_call!(ts::TVMFuncCall(
             self.func.unwrap().handle,
             values.as_mut_ptr(),
             tcodes.as_mut_ptr(),
@@ -237,115 +237,98 @@ impl<'a: 'b, 'b> From<&'b mut Module> for Builder<'a> {
     }
 }
 
-#[derive(Debug, Clone)]
-pub struct BackendPackedCFunc {
-    pub func: tvm::TVMPackedCFunc,
-    pub finalizer: tvm::TVMPackedCFuncFinalizer,
+unsafe extern "C" fn tvm_callback(
+    args: *mut ts::TVMValue,
+    type_codes: *mut c_int,
+    num_args: c_int,
+    ret: ts::TVMRetValueHandle,
+    fhandle: *mut c_void,
+) -> c_int {
+    let len = num_args as usize;
+    let args_list = unsafe { slice::from_raw_parts_mut(args, len).to_vec() };
+    let type_codes_list = unsafe { slice::from_raw_parts_mut(type_codes, len).to_vec() };
+    let mut local_args: Vec<TVMArgValue> = Vec::with_capacity(len);
+    let mut value = unsafe { mem::uninitialized::<ts::TVMValue>() };
+    let mut tcode = unsafe { mem::uninitialized::<c_int>() };
+    let rust_fn = unsafe {
+        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>>(
+            fhandle,
+        )
+    };
+    for i in 0..len {
+        value = args_list[i];
+        tcode = type_codes_list[i];
+        if tcode == TypeCode::kNodeHandle as c_int
+            || tcode == TypeCode::kFuncHandle as c_int
+            || tcode == TypeCode::kModuleHandle as c_int
+        {
+            check_call!(ts::TVMCbArgToReturn(&mut value as *mut _, tcode));
+        }
+
+        if tcode != TypeCode::kArrayHandle as c_int {
+            // TODO: TVMValue::from(ts::TVMValue)
+            local_args.push(TVMArgValue::new(
+                TVMValue::new(ValueKind::Unknown, value), // ugly!
+                TypeCode::from(&tcode),
+            ));
+        }
+        // py: _ffi, _cython, c_make_array
+    }
+    // TODO: error handle
+    let rv = rust_fn(local_args.as_slice()).unwrap();
+    let mut ret_val = *rv.value;
+    let mut ret_type_code = rv.type_code as c_int;
+    check_call!(ts::TVMCFuncSetReturn(
+        ret,
+        &mut ret_val as *mut _,
+        &mut ret_type_code as *mut _,
+        1 as c_int
+    ));
+    0
 }
 
-impl BackendPackedCFunc {
-    pub fn new(func: tvm::TVMPackedCFunc, finalizer: tvm::TVMPackedCFuncFinalizer) -> Self {
-        Self { func, finalizer }
-    }
-
-    /// Register global function
-    pub fn register(&mut self, name: String, override_: bool) -> TVMResult<()> {
-        let func = Function::try_from(self)?;
-        let ovd = if override_ { 1 } else { 0 };
-        let name = CString::new(name).unwrap();
-        check_call!(tvm::TVMFuncRegisterGlobal(
-            name.as_ptr() as *const c_char,
-            func.as_handle(),
-            ovd
-        ));
-        mem::forget(name);
-        Ok(())
-    }
+fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>) -> Function {
+    let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
+    let resource_handle = f as *mut fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>;
+    check_call!(ts::TVMFuncCreateFromCFunc(
+        Some(tvm_callback),
+        resource_handle as *mut c_void,
+        None,
+        &mut fhandle as *mut _
+    ));
+    Function::new(fhandle, false, false)
 }
 
-/// Convert `BackendPackedCFunc` to a global `Function`
-impl<'a> TryFrom<&'a mut BackendPackedCFunc> for Function {
-    type Error = TVMError;
-    fn try_from(packed: &mut BackendPackedCFunc) -> TVMResult<Self> {
-        packed
-            .func
-            .take()
-            .map(|func| {
-                let mut fhandle = ptr::null_mut() as tvm::TVMFunctionHandle;
-                let resource_handle = ptr::null_mut() as *mut c_void;
-                check_call!(tvm::TVMFuncCreateFromCFunc(
-                    Some(func),
-                    resource_handle,
-                    packed.finalizer,
-                    &mut fhandle as *mut _
-                ));
-                Function::new(fhandle, true, false)
-            })
-            .ok_or(TVMError::new("Packed function is not provided"))
-    }
+pub fn register(
+    f: fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>,
+    name: String,
+    override_: bool,
+) -> TVMResult<()> {
+    let func = convert_to_tvm_func(f);
+    let ovd = if override_ { 1 } else { 0 };
+    let name = CString::new(name).unwrap();
+    check_call!(ts::TVMFuncRegisterGlobal(
+        name.as_ptr() as *const c_char,
+        func.as_handle(),
+        ovd
+    ));
+    mem::forget(name);
+    Ok(())
 }
-
-// macro_rules! tvm_callback {
-//     { $fn_name:ident, $cb:item } => (
-//         unsafe extern "C" fn $fn_name(
-//             args: *mut tvm::TVMValue,
-//             type_codes: *mut c_int,
-//             num_args: c_int,
-//             ret: tvm::TVMRetValueHandle,
-//             resource_handle: *mut c_void,
-//         ) -> c_int {
-//             let mut value = tvm::TVMValue { v_int64: 0 };
-//             let mut tcode = 0;
-//             let mut rargs = vec![];
-//             for arg in 0..num_args {
-//                 // handle TVMCbArgToReturn
-//                 rargs.push(args);
-//             }
-
-//             let local_rfn = unsafe { *resource_handle };
-//             let rv = local_rfn(rargs); // --> so local_rfn must return Result<TVMRetValue>
-//             // handle rv error! --> TVMAPISetLastError --> return -1
-//             match rv {
-//                 Ok(_) => { ... },
-//                 Err(msg) => TVMError::set_last(msg),
-//             }
-
-//             check_call!(tvm::TVMCFuncSetReturn(ret,
-//                                                 &mut value as *mut _,
-//                                                 &mut tcode as *mut _,
-//                                                 1))
-
-//             // how to wrap the ret idomatically?
-//             // TVMRetValue::new(TVMValue::from(&ret), TypeCode::from(&ret))
-//             0
-//         }
-//     )
-// }
 
 #[macro_export]
-macro_rules! register_func {
+macro_rules! register_global_func {
     {
         $(#[$m:meta])*
         fn $fn_name:ident($args:ident : &[TVMArgValue]) -> TVMResult<TVMRetValue> {
             $($code:tt)*
         }
     } => {{
-        $(#[$m])*
-        unsafe extern "C" fn $fn_name(
-            args: *mut tvm::TVMValue,
-            type_codes: *mut c_int,
-            num_args: c_int,
-            ret: tvm::TVMRetValueHandle,
-            resource_handle: *mut c_void)
-            -> c_int {
-                let mut ten_ret = tvm::TVMValue { v_int64: 0 };
-                let mut tp = 0;
-                tvm::TVMCFuncSetReturn(ret,
-                    &mut ten_ret as *mut tvm::TVMValue,
-                    &mut tp as *mut c_int, 1 as c_int)
-            }
-            let mut packed = BackendPackedCFunc::new(Some($fn_name), None);
-            packed.register(stringify!($fn_name).to_owned(), false).unwrap();
+        fn __internal($args: &[TVMArgValue]) -> TVMResult<TVMRetValue<'static>> {
+            $($code)*
+        }
+
+        $crate::function::register(__internal, stringify!($fn_name).to_owned(), false).unwrap();
     }}
 }
 
@@ -385,97 +368,21 @@ mod tests {
     }
 
     // test must be run individually
-    #[test]
-    fn register_packed() {
-
-        fn sum(args: &[TVMArgValue]) -> TVMResult<TVMRetValue<'static>> {
-            let mut ret = 0;
-            for arg in args.iter() {
-                ret += arg.to_int();
-            }
-            let ret_val = TVMRetValue::new(TVMValue::from(&ret), TypeCode::from(&ret));
-            Ok(ret_val)
-        }
-
-        fn register() {
-            unsafe extern "C" fn sum(
-            args: *mut tvm::TVMValue,
-            type_codes: *mut c_int,
-            num_args: c_int,
-            ret: tvm::TVMRetValueHandle,
-            resource_handle: *mut c_void,
-        ) -> c_int {
-            
-            let mut zero_ret = tvm::TVMValue { v_int64: 0 };
-            let mut ztc = 0;
-            tvm::TVMCFuncSetReturn(
-                ret,
-                &mut zero_ret as *mut tvm::TVMValue,
-                &mut ztc as *mut c_int,
-                1 as c_int
-            )
-        }
-        }
-
-        // unsafe extern "C" fn zero(
-        //     args: *mut tvm::TVMValue,
-        //     type_codes: *mut c_int,
-        //     num_args: c_int,
-        //     ret: tvm::TVMRetValueHandle,
-        //     resource_handle: *mut c_void,
-        // ) -> c_int {
-        //     let mut zero_ret = tvm::TVMValue { v_int64: 0 };
-        //     let mut ztc = 0;
-        //     check_call!(tvm::TVMCFuncSetReturn(
-        //         ret,
-        //         &mut zero_ret as *mut tvm::TVMValue,
-        //         &mut ztc as *mut c_int,
-        //         1 as c_int
-        //     ));
-        //     0
-        // }
-
-        // register_func! {
-        //     fn zero(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
-        //         Ok(TVMArgValue::new(TVMValue::from(&10), TypeCode::from(&10)))
-        //     }
-        // }
-
-        // let mut zero_packed = BackendPackedCFunc::new(Some(zero), None);
-        // let reg_zero = zero_packed.register("zero".to_owned(), false);
-        // assert!(reg_zero.is_ok());
-        let mut registered = Builder::default().get_function("zero".to_owned(), true, false);
-        assert!(registered.func.is_some());
-        registered = registered.push_arg(&10).push_arg(&20);
-        assert_eq!(registered.invoke().unwrap().to_int(), 0);
-    }
-
     // #[test]
-    // fn register_func() {
-    //     register_func!{
+    // fn register_packed() {
+    //     register_global_func! {
     //         fn sum(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
     //             let mut ret = 0;
     //             for arg in args.iter() {
     //                 ret += arg.to_int();
     //             }
-
     //             let ret_val = TVMRetValue::new(TVMValue::from(&ret), TypeCode::from(&ret));
     //             Ok(ret_val)
     //         }
     //     }
-    // }
-
-    // #[test]
-    // fn call_register() {
-    //     let mut registered = Builder::default().get_function(
-    //         "zero".to_owned(),
-    //         false,
-    //         false,
-    //     );
-
+    //     let mut registered = Builder::default().get_function("sum".to_owned(), true, false);
     //     assert!(registered.func.is_some());
     //     registered = registered.push_arg(&10).push_arg(&20);
-    //     // println!("{:?}", registered.invoke().unwrap().to_int());
-    //     assert_eq!(registered.invoke().unwrap().to_int(), 0);
+    //     assert_eq!(registered.invoke().unwrap().to_int(), 30);
     // }
 }

@@ -1,3 +1,5 @@
+extern crate tvm_sys as ts;
+
 use std::convert::TryFrom;
 use std::mem;
 use std::os::raw::c_int;
@@ -7,8 +9,6 @@ use std::slice;
 use num_traits::Num;
 use rust_ndarray::{Array, ArrayD};
 
-use tvm;
-
 use TVMContext;
 use TVMError;
 use TVMResult;
@@ -16,13 +16,13 @@ use TVMType;
 
 #[derive(Debug)]
 pub struct NDArray {
-    pub(crate) handle: tvm::TVMArrayHandle,
+    pub(crate) handle: ts::TVMArrayHandle,
     is_view: bool,
 }
 
 pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
-    let mut handle = ptr::null_mut() as tvm::TVMArrayHandle;
-    check_call!(tvm::TVMArrayAlloc(
+    let mut handle = ptr::null_mut() as ts::TVMArrayHandle;
+    check_call!(ts::TVMArrayAlloc(
         shape.as_ptr() as *const i64,
         shape.len() as c_int,
         dtype.inner.code as c_int,
@@ -36,14 +36,14 @@ pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray
 }
 
 impl NDArray {
-    fn new(handle: tvm::TVMArrayHandle, is_view: bool) -> Self {
+    fn new(handle: ts::TVMArrayHandle, is_view: bool) -> Self {
         NDArray {
             handle: handle,
             is_view: is_view,
         }
     }
 
-    pub fn as_handle(&self) -> tvm::TVMArrayHandle {
+    pub fn as_handle(&self) -> ts::TVMArrayHandle {
         self.handle
     }
 
@@ -121,7 +121,7 @@ impl NDArray {
     }
 
     pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
-        check_call!(tvm::TVMArrayCopyFromBytes(
+        check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
             data.as_ptr() as *mut _,
             data.len() * mem::size_of::<T>()
@@ -140,7 +140,7 @@ impl NDArray {
             self.dtype(),
             target.dtype()
         );
-        check_call!(tvm::TVMArrayCopyFromTo(
+        check_call!(ts::TVMArrayCopyFromTo(
             self.handle,
             target.handle,
             ptr::null_mut() as *mut _
@@ -204,7 +204,7 @@ impl_from_ndarray_rustndarray!(f32, "float");
 
 impl Drop for NDArray {
     fn drop(&mut self) {
-        check_call!(tvm::TVMArrayFree(self.handle));
+        check_call!(ts::TVMArrayFree(self.handle));
     }
 }
 

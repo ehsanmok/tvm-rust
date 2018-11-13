@@ -1,8 +1,8 @@
+extern crate tvm_sys as ts;
+
 use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_void;
 use std::ptr;
-
-use tvm;
 
 use function;
 use internal_api;
@@ -17,16 +17,16 @@ impl Default for TVMDeviceType {
     }
 }
 
-impl From<tvm::DLDeviceType> for TVMDeviceType {
-    fn from(device_type: tvm::DLDeviceType) -> Self {
+impl From<ts::DLDeviceType> for TVMDeviceType {
+    fn from(device_type: ts::DLDeviceType) -> Self {
         match device_type {
-            tvm::DLDeviceType::kDLCPU => TVMDeviceType(1),
-            tvm::DLDeviceType::kDLGPU => TVMDeviceType(2),
-            tvm::DLDeviceType::kDLCPUPinned => TVMDeviceType(3),
-            tvm::DLDeviceType::kDLOpenCL => TVMDeviceType(4),
-            tvm::DLDeviceType::kDLMetal => TVMDeviceType(8),
-            tvm::DLDeviceType::kDLVPI => TVMDeviceType(9),
-            tvm::DLDeviceType::kDLROCM => TVMDeviceType(10),
+            ts::DLDeviceType::kDLCPU => TVMDeviceType(1),
+            ts::DLDeviceType::kDLGPU => TVMDeviceType(2),
+            ts::DLDeviceType::kDLCPUPinned => TVMDeviceType(3),
+            ts::DLDeviceType::kDLOpenCL => TVMDeviceType(4),
+            ts::DLDeviceType::kDLMetal => TVMDeviceType(8),
+            ts::DLDeviceType::kDLVPI => TVMDeviceType(9),
+            ts::DLDeviceType::kDLROCM => TVMDeviceType(10),
         }
     }
 }
@@ -128,7 +128,7 @@ impl TVMContext {
     }
 
     pub fn sync(&self) -> TVMResult<()> {
-        check_call!(tvm::TVMSynchronize(
+        check_call!(ts::TVMSynchronize(
             self.device_type.0 as i32,
             self.device_id,
             ptr::null_mut() as *mut c_void
@@ -164,8 +164,8 @@ impl_dev_attrs!(max_clock_rate, 6);
 impl_dev_attrs!(multi_processor_count, 7);
 impl_dev_attrs!(max_thread_dimensions, 8);
 
-impl From<tvm::DLContext> for TVMContext {
-    fn from(ctx: tvm::DLContext) -> Self {
+impl From<ts::DLContext> for TVMContext {
+    fn from(ctx: ts::DLContext) -> Self {
         TVMContext {
             device_type: TVMDeviceType::from(ctx.device_type),
             device_id: ctx.device_id,

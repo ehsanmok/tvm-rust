@@ -6,20 +6,27 @@
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
 #![crate_name = "tvm_rust"]
-#![doc(html_root_url = "https://docs.rs/tvm-rust/0.0.2/")]
-#![allow(non_camel_case_types, dead_code, unused_variables, unused_unsafe)]
+#![doc(html_root_url = "https://docs.rs/ts-rust/0.0.2/")]
+#![allow(
+    non_camel_case_types,
+    dead_code,
+    unused_variables,
+    unused_assignments,
+    unused_imports,
+    unused_unsafe
+)]
 #![feature(try_from, fn_traits, unboxed_closures, box_syntax)]
 
 //! [WIP]
 //!
 //! The `tvm_rust` crate aims at supporting Rust as one of the frontend API in
-//! [TVM](https://github.com/dmlc/tvm) runtime.
+//! [TVM](https://github.com/dmlc/ts) runtime.
 //!
 
-extern crate ndarray as rust_ndarray;
-extern crate tvm_sys as tvm;
+pub extern crate tvm_sys as ts;
 #[macro_use]
 extern crate lazy_static;
+extern crate ndarray as rust_ndarray;
 extern crate num_traits;
 
 use std::error::Error;
@@ -50,7 +57,7 @@ impl TVMError {
     /// Get the last error message from TVM
     pub fn get_last() -> &'static str {
         unsafe {
-            match CStr::from_ptr(tvm::TVMGetLastError()).to_str() {
+            match CStr::from_ptr(ts::TVMGetLastError()).to_str() {
                 Ok(s) => s,
                 Err(_) => "Invalid UTF-8 message",
             }
@@ -60,7 +67,7 @@ impl TVMError {
     pub fn set_last(msg: &'static str) {
         let c_string = CString::new(msg).unwrap();
         unsafe {
-            tvm::TVMAPISetLastError(c_string.as_ptr());
+            ts::TVMAPISetLastError(c_string.as_ptr());
         }
     }
 }
@@ -90,9 +97,11 @@ pub mod ty;
 pub mod value;
 
 pub use context::*;
+// pub use function::{Function, BackendPackedCFunc};
 pub use function::Function;
 pub use module::Module;
 pub use ndarray::{empty, NDArray};
+pub use std::os::raw::{c_int, c_void};
 pub use ty::*;
 pub use value::*;
 
@@ -100,7 +109,7 @@ pub use value::*;
 pub type TVMResult<T> = result::Result<T, TVMError>;
 
 pub fn version() -> &'static str {
-    str::from_utf8(tvm::TVM_VERSION).unwrap()
+    str::from_utf8(ts::TVM_VERSION).unwrap()
 }
 
 #[cfg(test)]

@@ -2,7 +2,7 @@ use std::ffi::OsString;
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
-use tvm;
+use ts;
 
 use function::Function;
 use module::Module;
@@ -109,13 +109,13 @@ impl_prim_type!([u8], kBytes, mut);
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct TVMType {
-    pub inner: tvm::TVMType, // (type) code: u8, bits: u8, lanes: u16
+    pub inner: ts::TVMType, // (type) code: u8, bits: u8, lanes: u16
 }
 
 impl TVMType {
     pub(crate) fn new(type_code: u8, bits: u8, lanes: u16) -> Self {
         TVMType {
-            inner: tvm::TVMType {
+            inner: ts::TVMType {
                 code: type_code,
                 bits: bits,
                 lanes: lanes,
@@ -139,22 +139,22 @@ impl<'a> From<&'a str> for TVMType {
 impl Display for TVMType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self.inner {
-            tvm::TVMType {
+            ts::TVMType {
                 code: 0,
                 bits: 32,
                 lanes: 1,
             } => write!(f, "int"),
-            tvm::TVMType {
+            ts::TVMType {
                 code: 1,
                 bits: 32,
                 lanes: 1,
             } => write!(f, "uint"),
-            tvm::TVMType {
+            ts::TVMType {
                 code: 2,
                 bits: 32,
                 lanes: 1,
             } => write!(f, "float"),
-            tvm::TVMType {
+            ts::TVMType {
                 code: 4,
                 bits: 64,
                 lanes: 1,
@@ -164,20 +164,20 @@ impl Display for TVMType {
     }
 }
 
-impl From<TVMType> for tvm::DLDataType {
+impl From<TVMType> for ts::DLDataType {
     fn from(dtype: TVMType) -> Self {
         dtype.inner
     }
 }
 
-impl From<tvm::DLDataType> for TVMType {
-    fn from(dtype: tvm::DLDataType) -> Self {
+impl From<ts::DLDataType> for TVMType {
+    fn from(dtype: ts::DLDataType) -> Self {
         Self::new(dtype.code, dtype.bits, dtype.lanes)
     }
 }
 
 impl Deref for TVMType {
-    type Target = tvm::TVMType;
+    type Target = ts::TVMType;
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
@@ -192,22 +192,22 @@ impl DerefMut for TVMType {
 impl<'a, 'b> From<&'b TVMType> for &'a str {
     fn from(ty: &TVMType) -> Self {
         match **ty {
-            tvm::TVMType {
+            ts::TVMType {
                 code: 0,
                 bits: 32,
                 lanes: 1,
             } => "int",
-            tvm::TVMType {
+            ts::TVMType {
                 code: 1,
                 bits: 32,
                 lanes: 1,
             } => "uint",
-            tvm::TVMType {
+            ts::TVMType {
                 code: 2,
                 bits: 32,
                 lanes: 1,
             } => "float",
-            tvm::TVMType {
+            ts::TVMType {
                 code: 4,
                 bits: 64,
                 lanes: 1,
