@@ -1,9 +1,9 @@
-extern crate tvm_sys as ts;
-
 use std::mem;
 use std::os::raw::{c_char, c_int};
 use std::path::Path;
 use std::ptr;
+
+use ts;
 
 use function::{self, Function};
 use internal_api;
@@ -34,12 +34,12 @@ impl Module {
 
     pub fn entry_func(mut self) -> Self {
         if self.entry.is_none() {
-            self.entry = self.get_function(ENTRY_FUNC.to_owned(), false).ok();
+            self.entry = self.get_function(ENTRY_FUNC, false).ok();
         }
         self
     }
 
-    pub fn get_function(&self, name: String, query_import: bool) -> TVMResult<Function> {
+    pub fn get_function(&self, name: &str, query_import: bool) -> TVMResult<Function> {
         let name = name.to_owned();
         let query_import = if query_import == true { 1 } else { 0 };
         let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
@@ -72,7 +72,9 @@ impl Module {
             path.extension().unwrap().to_str().unwrap().as_ptr() as *const c_char,
             &mut module_handle as *mut _
         ));
-        Ok(Self::new(module_handle, false, None))
+        let ret = Self::new(module_handle, false, None);
+        // Ok(ret.entry_func())
+        Ok(ret)
     }
 
     pub fn enabled(&self, target: &str) -> bool {
