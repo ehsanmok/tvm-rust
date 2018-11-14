@@ -33,6 +33,28 @@ impl Default for TypeCode {
     }
 }
 
+impl<'a> Into<TypeCode> for i32 {
+    fn into(self) -> TypeCode {
+        match self {
+            0 => TypeCode::kDLInt,
+            1 => TypeCode::kDLUInt,
+            2 => TypeCode::kDLFloat,
+            3 => TypeCode::kHandle,
+            4 => TypeCode::kNull,
+            5 => TypeCode::kTVMType,
+            6 => TypeCode::kTVMContext,
+            7 => TypeCode::kArrayHandle,
+            8 => TypeCode::kNodeHandle,
+            9 => TypeCode::kModuleHandle,
+            10 => TypeCode::kFuncHandle,
+            11 => TypeCode::kStr,
+            12 => TypeCode::kBytes,
+            _ => unreachable!()
+        }
+    }
+}
+
+
 impl Display for TypeCode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         match self {

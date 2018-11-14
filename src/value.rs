@@ -270,12 +270,12 @@ impl<'a> TVMArgValue<'a> {
     }
 
     pub fn to_int(&self) -> i64 {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kDLInt,
-            "Requires i64, but given {}",
-            self.type_code
-        );
+        // assert_eq!(
+        //     self.type_code,
+        //     TypeCode::kDLInt,
+        //     "Requires i64, but given {}",
+        //     self.type_code
+        // );
         unsafe { self.value.inner.v_int64 }
     }
 

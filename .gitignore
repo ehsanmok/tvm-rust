@@ -3,3 +3,6 @@
 Cargo.lock
 /tvm-sys/Cargo.lock
 /tvm-sys/target
+/tests/callback/target
+/tests/basics/target
+

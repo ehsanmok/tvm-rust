@@ -187,8 +187,8 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
         if self.func.is_none() {
             panic!("Function handle is None");
         }
-        let mut ret_val = ts::TVMValue { v_int64: 0 };
-        let mut ret_type_code = 0;
+        let mut ret_val = unsafe { mem::uninitialized::<ts::TVMValue>() };
+        let mut ret_type_code = 0 as c_int;
         let arg_buf = self.arg_buf.clone().unwrap();
         let mut num_args = arg_buf.len();
         let mut values = arg_buf
@@ -219,7 +219,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
         ));
         let ret = TVMRetValue::new(
             TVMValue::new(ValueKind::Return, ret_val),
-            TypeCode::from(&ret_type_code),
+            ret_type_code.into(),
         );
         Ok(ret)
     }
@@ -269,7 +269,7 @@ unsafe extern "C" fn tvm_callback(
             // TODO: TVMValue::from(ts::TVMValue)
             local_args.push(TVMArgValue::new(
                 TVMValue::new(ValueKind::Unknown, value), // ugly!
-                TypeCode::from(&tcode),
+                tcode.into(),
             ));
         }
         // py: _ffi, _cython, c_make_array
@@ -287,13 +287,23 @@ unsafe extern "C" fn tvm_callback(
     0
 }
 
+unsafe extern "C" fn tvm_callback_finalizer(fhandle: *mut c_void) {
+    let rust_fn = unsafe {
+        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>>(
+            fhandle,
+        )
+    };
+    mem::drop(rust_fn);
+}
+
+
 fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>) -> Function {
     let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
     let resource_handle = f as *mut fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>;
     check_call!(ts::TVMFuncCreateFromCFunc(
         Some(tvm_callback),
         resource_handle as *mut c_void,
-        None,
+        Some(tvm_callback_finalizer),
         &mut fhandle as *mut _
     ));
     Function::new(fhandle, false, false)
@@ -324,6 +334,7 @@ macro_rules! register_global_func {
             $($code:tt)*
         }
     } => {{
+        $(#[$m])*
         fn __internal($args: &[TVMArgValue]) -> TVMResult<TVMRetValue<'static>> {
             $($code)*
         }
@@ -336,8 +347,10 @@ macro_rules! register_global_func {
 mod tests {
     use super::*;
 
+    #[test]
     fn list_global_func() {
         let list = list_global_func_names();
+        println!("{:?}", list);
         assert!(list
             .lock()
             .unwrap()
@@ -366,23 +379,4 @@ mod tests {
         assert!(func.arg_buf.is_some());
         assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(2));
     }
-
-    // test must be run individually
-    // #[test]
-    // fn register_packed() {
-    //     register_global_func! {
-    //         fn sum(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
-    //             let mut ret = 0;
-    //             for arg in args.iter() {
-    //                 ret += arg.to_int();
-    //             }
-    //             let ret_val = TVMRetValue::new(TVMValue::from(&ret), TypeCode::from(&ret));
-    //             Ok(ret_val)
-    //         }
-    //     }
-    //     let mut registered = Builder::default().get_function("sum".to_owned(), true, false);
-    //     assert!(registered.func.is_some());
-    //     registered = registered.push_arg(&10).push_arg(&20);
-    //     assert_eq!(registered.invoke().unwrap().to_int(), 30);
-    // }
 }
