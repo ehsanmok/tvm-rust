@@ -7,7 +7,7 @@ use std::slice;
 use num_traits::Num;
 use rust_ndarray::{Array, ArrayD};
 
-use tvm;
+use ts;
 
 use TVMContext;
 use TVMError;
@@ -16,13 +16,13 @@ use TVMType;
 
 #[derive(Debug)]
 pub struct NDArray {
-    pub(crate) handle: tvm::TVMArrayHandle,
+    pub(crate) handle: ts::TVMArrayHandle,
     is_view: bool,
 }
 
 pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
-    let mut handle = ptr::null_mut() as tvm::TVMArrayHandle;
-    check_call!(tvm::TVMArrayAlloc(
+    let mut handle = ptr::null_mut() as ts::TVMArrayHandle;
+    check_call!(ts::TVMArrayAlloc(
         shape.as_ptr() as *const i64,
         shape.len() as c_int,
         dtype.inner.code as c_int,
@@ -36,14 +36,14 @@ pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray
 }
 
 impl NDArray {
-    fn new(handle: tvm::TVMArrayHandle, is_view: bool) -> Self {
+    pub(crate) fn new(handle: ts::TVMArrayHandle, is_view: bool) -> Self {
         NDArray {
             handle: handle,
             is_view: is_view,
         }
     }
 
-    pub fn as_handle(&self) -> tvm::TVMArrayHandle {
+    pub fn as_handle(&self) -> ts::TVMArrayHandle {
         self.handle
     }
 
@@ -121,15 +121,11 @@ impl NDArray {
     }
 
     pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
-        check_call!(tvm::TVMArrayCopyFromBytes(
+        check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
             data.as_ptr() as *mut _,
             data.len() * mem::size_of::<T>()
         ));
-    }
-
-    pub fn copy_from_ndarray(&mut self, arr: NDArray) {
-        self.copy_to_ndarray(arr).unwrap();
     }
 
     pub fn copy_to_ndarray(&self, target: NDArray) -> TVMResult<NDArray> {
@@ -140,10 +136,10 @@ impl NDArray {
             self.dtype(),
             target.dtype()
         );
-        check_call!(tvm::TVMArrayCopyFromTo(
+        check_call!(ts::TVMArrayCopyFromTo(
             self.handle,
             target.handle,
-            ptr::null_mut() as *mut _
+            ptr::null_mut() as ts::TVMStreamHandle
         ));
         Ok(target)
     }
@@ -176,7 +172,8 @@ macro_rules! impl_from_ndarray_rustndarray {
                 Ok(Array::from_shape_vec(
                     nd.shape().unwrap().clone(),
                     nd.to_vec::<$type>().unwrap(),
-                ).unwrap())
+                )
+                .unwrap())
             }
         }
 
@@ -190,7 +187,8 @@ macro_rules! impl_from_ndarray_rustndarray {
                 Ok(Array::from_shape_vec(
                     nd.shape().unwrap().clone(),
                     nd.to_vec::<$type>().unwrap(),
-                ).unwrap())
+                )
+                .unwrap())
             }
         }
     };
@@ -202,7 +200,9 @@ impl_from_ndarray_rustndarray!(f32, "float");
 
 impl Drop for NDArray {
     fn drop(&mut self) {
-        check_call!(tvm::TVMArrayFree(self.handle));
+        if !self.is_view {
+            check_call!(ts::TVMArrayFree(self.handle));
+        }
     }
 }
 
@@ -235,6 +235,11 @@ mod tests {
         assert_eq!(ndarray.ndim(), 1);
         assert!(ndarray.is_contiguous());
         assert_eq!(ndarray.byte_offset(), 0);
+        let mut shape = vec![4];
+        let e = empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));
+        let nd = ndarray.copy_to_ndarray(e);
+        assert!(nd.is_ok());
+        assert_eq!(nd.unwrap().to_vec::<i32>().unwrap(), data);
     }
 
     #[test]
@@ -245,8 +250,8 @@ mod tests {
         let ctx = TVMContext::cpu(0); // TVMContext::gpu(0);
         let mut nd_float = empty(&mut shape, ctx.clone(), TVMType::from("float"));
         nd_float.copy_from_buffer(&mut data);
-        let mut empty_int = empty(&mut shape, ctx, TVMType::from("int"));
-        empty_int.copy_from_ndarray(nd_float);
+        let empty_int = empty(&mut shape, ctx, TVMType::from("int"));
+        nd_float.copy_to_ndarray(empty_int).unwrap();
     }
 
     #[test]
