@@ -73,18 +73,12 @@ impl Module {
             &mut module_handle as *mut _
         ));
         let ret = Self::new(module_handle, false, None);
-        // Ok(ret.entry_func())
         Ok(ret)
     }
 
-    pub fn enabled(&self, target: &str) -> bool {
-        let target = target.to_owned();
+    pub fn enabled(&self, target: String) -> bool {
         let func = internal_api::get_api("module._Enabled".to_owned());
-        let ret = function::Builder::from(func)
-            .push_arg(&target)
-            .invoke()
-            .unwrap();
-        mem::forget(target);
+        let ret = function::Builder::from(func).arg(&target).invoke().unwrap();
         ret.to_int() != 0
     }
 

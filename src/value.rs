@@ -1,11 +1,11 @@
-extern crate tvm_sys as ts;
-
 use std::ffi::CStr;
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 use std::ops::{Deref, DerefMut};
 use std::os::raw::{c_char, c_void};
+
+use ts;
 
 use Function;
 use Module;
@@ -41,11 +41,11 @@ impl TVMValue {
 }
 
 macro_rules! impl_prim_val {
-    ($type:ty, $kind:expr, $field:ident) => {
+    ($type:ty, $kind:expr, $field:ident, $cast:ty) => {
         impl<'a> From<&'a $type> for TVMValue {
             fn from(arg: &$type) -> Self {
                 let inner = ts::TVMValue {
-                    $field: *arg as i64,
+                    $field: *arg as $cast,
                 };
                 Self::new($kind, inner)
             }
@@ -54,11 +54,11 @@ macro_rules! impl_prim_val {
 }
 
 macro_rules! impl_prim_val_mut {
-    ($type:ty, $kind:expr, $field:ident) => {
+    ($type:ty, $kind:expr, $field:ident, $cast:ty) => {
         impl<'a> From<&'a mut $type> for TVMValue {
             fn from(arg: &mut $type) -> Self {
                 let inner = ts::TVMValue {
-                    $field: *arg as i64,
+                    $field: *arg as $cast,
                 };
                 Self::new($kind, inner)
             }
@@ -66,21 +66,27 @@ macro_rules! impl_prim_val_mut {
     };
 }
 
-impl_prim_val!(i64, ValueKind::Int, v_int64);
-impl_prim_val!(i32, ValueKind::Int, v_int64);
-impl_prim_val!(i8, ValueKind::Int, v_int64);
-impl_prim_val!(u64, ValueKind::Int, v_int64);
-impl_prim_val!(u32, ValueKind::Int, v_int64);
-impl_prim_val!(u8, ValueKind::Int, v_int64);
-impl_prim_val!(bool, ValueKind::Int, v_int64);
+impl_prim_val!(i64, ValueKind::Int, v_int64, i64);
+impl_prim_val!(i32, ValueKind::Int, v_int64, i64);
+impl_prim_val!(i8, ValueKind::Int, v_int64, i64);
+impl_prim_val!(u64, ValueKind::Int, v_int64, i64);
+impl_prim_val!(u32, ValueKind::Int, v_int64, i64);
+impl_prim_val!(u8, ValueKind::Int, v_int64, i64);
+impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
 
-impl_prim_val_mut!(i64, ValueKind::Int, v_int64);
-impl_prim_val_mut!(i32, ValueKind::Int, v_int64);
-impl_prim_val_mut!(i8, ValueKind::Int, v_int64);
-impl_prim_val_mut!(u64, ValueKind::Int, v_int64);
-impl_prim_val_mut!(u32, ValueKind::Int, v_int64);
-impl_prim_val_mut!(u8, ValueKind::Int, v_int64);
-impl_prim_val_mut!(bool, ValueKind::Int, v_int64);
+impl_prim_val!(f64, ValueKind::Float, v_float64, f64);
+impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
+
+impl_prim_val_mut!(i64, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(i32, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(i8, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(u64, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(u32, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(u8, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(bool, ValueKind::Int, v_int64, i64);
+
+impl_prim_val_mut!(f64, ValueKind::Float, v_float64, f64);
+impl_prim_val_mut!(f32, ValueKind::Float, v_float64, f64);
 
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
@@ -312,7 +318,7 @@ impl<'a> TVMArgValue<'a> {
         Module::new(module_handle, false, None)
     }
 
-    pub fn to_str(&self) -> &str {
+    pub fn to_string(&self) -> String {
         assert_eq!(
             self.type_code,
             TypeCode::kStr,
@@ -322,22 +328,33 @@ impl<'a> TVMArgValue<'a> {
         let sptr: *const c_char = unsafe { self.value.inner.v_str };
         unsafe {
             match CStr::from_ptr(sptr).to_str() {
-                Ok(s) => s,
-                Err(_) => "Invalid UTF-8 message",
+                Ok(s) => s.to_string(),
+                Err(_) => "Invalid UTF-8 message".to_string(),
             }
         }
+        // unsafe { CString::from_raw(sptr as *mut _).into_string().unwrap() }
+    }
+
+    pub fn to_ndarray(&self) -> NDArray {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kArrayHandle,
+            "Requires Array handle, given {}",
+            self.type_code
+        );
+        let handle = unsafe { self.value.inner.v_handle };
+        let arr_handle = unsafe { mem::transmute::<*mut c_void, ts::TVMArrayHandle>(handle) };
+        NDArray::new(arr_handle, true)
     }
 }
 
-impl<'a, 'b> From<&'b TVMArgValue<'a>> for TVMValue {
-    fn from(arg: &TVMArgValue) -> Self {
-        arg.clone().value
-    }
-}
-
-impl<'a, 'b> From<&'b TVMArgValue<'a>> for TypeCode {
-    fn from(arg: &TVMArgValue) -> Self {
-        arg.clone().type_code
+impl<'b, 'a: 'b, T: 'b> From<&'b T> for TVMArgValue<'a>
+where
+    TVMValue: From<&'b T>,
+    TypeCode: From<&'b T>,
+{
+    fn from(arg: &'b T) -> Self {
+        TVMArgValue::new(TVMValue::from(arg), TypeCode::from(arg))
     }
 }
 

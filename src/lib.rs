@@ -10,9 +10,8 @@
 #![allow(
     non_camel_case_types,
     dead_code,
-    unused_variables,
     unused_assignments,
-    unused_imports,
+    unused_variables,
     unused_unsafe
 )]
 #![feature(try_from, fn_traits, unboxed_closures, box_syntax)]

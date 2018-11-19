@@ -49,11 +49,10 @@ impl<'a> Into<TypeCode> for i32 {
             10 => TypeCode::kFuncHandle,
             11 => TypeCode::kStr,
             12 => TypeCode::kBytes,
-            _ => unreachable!()
+            _ => unreachable!(),
         }
     }
 }
-
 
 impl Display for TypeCode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {

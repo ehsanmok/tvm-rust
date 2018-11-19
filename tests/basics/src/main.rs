@@ -19,16 +19,17 @@ fn main() {
         let mut ret = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
         let path = Path::new("add_cpu.so");
         let mut fadd = Module::load(path).unwrap();
-        assert!(fadd.enabled("cpu"));
+        assert!(fadd.enabled("cpu".to_owned()));
         fadd = fadd.entry_func();
         function::Builder::from(&mut fadd)
-            .push_arg(&arr)
-            .push_arg(&arr)
+            .arg(&arr)
+            .arg(&arr)
             .accept_ret(&mut ret)
             .invoke()
             .unwrap();
 
         assert_eq!(ret.to_vec::<f32>().unwrap(), vec![6f32, 8.0]);
+        println!("success!")
     }
 
     if cfg!(feature = "gpu") {
@@ -42,16 +43,17 @@ fn main() {
         let ptx = Path::new("add_gpu.ptx");
         let mut fadd = Module::load(path).unwrap();
         let fadd_dep = Module::load(ptx).unwrap();
-        assert!(fadd.enabled("gpu"), "GPU is not enabled!");
+        assert!(fadd.enabled("gpu".to_owned()), "GPU is not enabled!");
         fadd.import_module(fadd_dep);
         fadd = fadd.entry_func();
         function::Builder::from(&mut fadd)
-            .push_arg(&arr)
-            .push_arg(&arr)
+            .arg(&arr)
+            .arg(&arr)
             .accept_ret(&mut ret)
             .invoke()
             .unwrap();
 
         assert_eq!(ret.to_vec::<f32>().unwrap(), vec![6f32, 8.0]);
+        println!("success!")
     }
 }

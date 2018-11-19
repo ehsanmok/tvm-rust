@@ -1,8 +1,8 @@
-extern crate tvm_sys as ts;
-
 use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_void;
 use std::ptr;
+
+use ts;
 
 use function;
 use internal_api;
@@ -119,9 +119,9 @@ impl TVMContext {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.0 as i32;
         let ret = function::Builder::from(func)
-            .push_arg(&dt)
-            .push_arg(&self.device_id)
-            .push_arg(&0)
+            .arg(&dt)
+            .arg(&self.device_id)
+            .arg(&0)
             .invoke()
             .unwrap();
         ret.to_int() != 0
@@ -144,9 +144,7 @@ macro_rules! impl_dev_attrs {
                 let func = ::internal_api::get_api("_GetDeviceAttr".to_owned());
                 let dt = self.device_type.0 as i32;
                 let ret = function::Builder::from(func)
-                    .push_arg(&dt)
-                    .push_arg(&self.device_id)
-                    .push_arg(&$attr_kind)
+                    .args(&[dt, self.device_id, $attr_kind])
                     .invoke()
                     .unwrap();
                 ret.to_int() as usize

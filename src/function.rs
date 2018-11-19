@@ -1,8 +1,4 @@
-extern crate tvm_sys as ts;
-
-use std::convert::TryFrom;
-use std::ffi::CStr;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_void};
 use std::ptr;
@@ -10,9 +6,10 @@ use std::slice;
 use std::str;
 use std::sync::Mutex;
 
+use ts;
+
 use Module;
 use TVMArgValue;
-use TVMError;
 use TVMResult;
 use TVMRetValue;
 use TVMValue;
@@ -129,35 +126,50 @@ impl<'a> Builder<'a> {
         }
     }
 
-    pub fn get_function(mut self, name: String, is_global: bool, allow_missing: bool) -> Self {
+    pub fn get_function(
+        &mut self,
+        name: String,
+        is_global: bool,
+        allow_missing: bool,
+    ) -> &mut Self {
         self.func = Function::get_function(name, is_global, allow_missing);
         self
     }
 
-    pub fn push_arg<'b, T: 'b + ?Sized>(mut self, arg: &'b T) -> Self
+    pub fn arg<'b, T>(&mut self, arg: &'b T) -> &mut Self
     where
         TVMValue: From<&'b T>,
         TypeCode: From<&'b T>,
     {
-        let tvm_arg = TVMArgValue::new(TVMValue::from(arg), TypeCode::from(arg));
+        let tvm_arg = TVMArgValue::from(arg);
         if self.arg_buf.is_none() {
             self.arg_buf = Some(Box::new([tvm_arg]));
-            return self;
         } else {
             let new_arg_buf = self.arg_buf.take().map(|bbuf| {
-                let mut new_buf = Vec::with_capacity(bbuf.len() + 1);
-                let tmp = Vec::from(bbuf);
-                for elt in tmp {
-                    new_buf.push(elt);
-                }
-                new_buf.push(tvm_arg);
-                new_buf.into_boxed_slice()
+                let mut new_arg_buf = Vec::from(bbuf);
+                new_arg_buf.push(tvm_arg);
+                let new_len = new_arg_buf.len();
+                new_arg_buf.truncate(new_len);
+                new_arg_buf.into_boxed_slice()
             });
-            Self::new(self.func, new_arg_buf, self.ret_buf)
+            self.arg_buf = new_arg_buf;
         }
+        self
     }
 
-    pub fn accept_ret<'b, T: 'b + ?Sized>(mut self, arg: &'b mut T) -> Self
+    pub fn args<'b, T: 'b, I>(&mut self, args: I) -> &mut Self
+    where
+        I: IntoIterator<Item = &'b T>,
+        TVMValue: From<&'b T>,
+        TypeCode: From<&'b T>,
+    {
+        for arg in args {
+            self.arg(&arg);
+        }
+        self
+    }
+
+    pub fn accept_ret<'b, T: 'b>(&mut self, arg: &'b mut T) -> &mut Self
     where
         TVMValue: From<&'b T>,
         TypeCode: From<&'b T>,
@@ -165,19 +177,19 @@ impl<'a> Builder<'a> {
         let tvm_ret = TVMRetValue::new(TVMValue::from(arg), TypeCode::from(arg));
         if self.ret_buf.is_none() {
             self.ret_buf = Some(Box::new([tvm_ret]));
-            return self;
         } else {
             let new_ret_buf = self.ret_buf.take().map(|bbuf| {
                 let mut new_buf = Vec::with_capacity(1);
                 new_buf.push(tvm_ret);
                 new_buf.into_boxed_slice()
             });
-            Self::new(self.func, self.arg_buf, new_ret_buf)
+            self.arg_buf = new_ret_buf;
         }
+        self
     }
 
-    pub fn invoke(self) -> TVMResult<TVMRetValue<'a>> {
-        self(())
+    pub fn invoke(&mut self) -> TVMResult<TVMRetValue<'a>> {
+        self.clone()(())
     }
 }
 
@@ -247,7 +259,7 @@ unsafe extern "C" fn tvm_callback(
     let len = num_args as usize;
     let args_list = unsafe { slice::from_raw_parts_mut(args, len).to_vec() };
     let type_codes_list = unsafe { slice::from_raw_parts_mut(type_codes, len).to_vec() };
-    let mut local_args: Vec<TVMArgValue> = Vec::with_capacity(len);
+    let mut local_args: Vec<TVMArgValue> = Vec::new();
     let mut value = unsafe { mem::uninitialized::<ts::TVMValue>() };
     let mut tcode = unsafe { mem::uninitialized::<c_int>() };
     let rust_fn = unsafe {
@@ -264,15 +276,10 @@ unsafe extern "C" fn tvm_callback(
         {
             check_call!(ts::TVMCbArgToReturn(&mut value as *mut _, tcode));
         }
-
-        if tcode != TypeCode::kArrayHandle as c_int {
-            // TODO: TVMValue::from(ts::TVMValue)
-            local_args.push(TVMArgValue::new(
-                TVMValue::new(ValueKind::Unknown, value), // ugly!
-                tcode.into(),
-            ));
-        }
-        // py: _ffi, _cython, c_make_array
+        local_args.push(TVMArgValue::new(
+            TVMValue::new(ValueKind::Handle, value),
+            tcode.into(),
+        ));
     }
     // TODO: error handle
     let rv = rust_fn(local_args.as_slice()).unwrap();
@@ -295,7 +302,6 @@ unsafe extern "C" fn tvm_callback_finalizer(fhandle: *mut c_void) {
     };
     mem::drop(rust_fn);
 }
-
 
 fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>) -> Function {
     let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
@@ -335,11 +341,11 @@ macro_rules! register_global_func {
         }
     } => {{
         $(#[$m])*
-        fn __internal($args: &[TVMArgValue]) -> TVMResult<TVMRetValue<'static>> {
+        fn $fn_name($args: &[TVMArgValue]) -> TVMResult<TVMRetValue<'static>> {
             $($code)*
         }
 
-        $crate::function::register(__internal, stringify!($fn_name).to_owned(), false).unwrap();
+        $crate::function::register($fn_name, stringify!($fn_name).to_owned(), false).unwrap();
     }}
 }
 
@@ -370,13 +376,11 @@ mod tests {
 
     #[test]
     fn provide_args() {
-        let mut func = Builder::default().get_function(
-            "tvm.graph_runtime.remote_create".to_owned(),
-            true,
-            false,
-        );
-        func = func.push_arg(&10).push_arg("test");
+        let mut func = Builder::default();
+        func.get_function("tvm.graph_runtime.remote_create".to_owned(), true, false)
+            .args(&[10, 20])
+            .arg(&"test".to_owned());
         assert!(func.arg_buf.is_some());
-        assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(2));
+        assert_eq!(func.arg_buf.take().map(|bv| Vec::from(bv).len()), Some(3));
     }
 }
