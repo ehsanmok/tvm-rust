@@ -276,12 +276,9 @@ impl<'a> TVMArgValue<'a> {
     }
 
     pub fn to_int(&self) -> i64 {
-        // assert_eq!(
-        //     self.type_code,
-        //     TypeCode::kDLInt,
-        //     "Requires i64, but given {}",
-        //     self.type_code
-        // );
+        if self.type_code != TypeCode::kDLInt && self.type_code != TypeCode::kNull {
+            panic!("Requires i64 or NULL, but given {}", self.type_code);
+        }
         unsafe { self.value.inner.v_int64 }
     }
 
@@ -326,13 +323,13 @@ impl<'a> TVMArgValue<'a> {
             self.type_code
         );
         let sptr: *const c_char = unsafe { self.value.inner.v_str };
-        unsafe {
+        let ret_str = unsafe {
             match CStr::from_ptr(sptr).to_str() {
-                Ok(s) => s.to_string(),
-                Err(_) => "Invalid UTF-8 message".to_string(),
+                Ok(s) => s,
+                Err(_) => "Invalid UTF-8 message",
             }
-        }
-        // unsafe { CString::from_raw(sptr as *mut _).into_string().unwrap() }
+        };
+        ret_str.to_owned()
     }
 
     pub fn to_ndarray(&self) -> NDArray {
