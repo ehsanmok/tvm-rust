@@ -11,6 +11,8 @@ use Function;
 use Module;
 use NDArray;
 use TypeCode;
+use TVMType;
+use TVMContext;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub(crate) enum ValueKind {
@@ -220,6 +222,33 @@ impl<'a> From<&'a NDArray> for TVMValue {
     }
 }
 
+impl<'a> From<&'a TVMType> for TVMValue {
+    fn from(ty: &TVMType) -> Self {
+        let inner = ts::TVMValue {
+            v_type: ty.inner
+        };
+        Self::new(ValueKind::Type, inner)
+    }
+}
+
+impl<'a> From<&'a mut TVMType> for TVMValue {
+    fn from(ty: &mut TVMType) -> Self {
+        let inner = ts::TVMValue {
+            v_type: ty.inner
+        };
+        Self::new(ValueKind::Type, inner)
+    }
+}
+
+impl<'a> From<&'a TVMContext> for TVMValue {
+    fn from(ctx: &TVMContext) -> Self {
+        let inner = ts::TVMValue {
+            v_ctx: ctx.clone().into()
+        };
+        Self::new(ValueKind::Context, inner)
+    }
+}
+
 impl PartialEq for TVMValue {
     fn eq(&self, other: &TVMValue) -> bool {
         if self.kind != other.kind {
@@ -369,6 +398,28 @@ impl<'a> TVMArgValue<'a> {
         let arr_handle = unsafe { mem::transmute::<*mut c_void, ts::TVMArrayHandle>(handle) };
         NDArray::new(arr_handle, true)
     }
+
+    pub fn to_type(&self) -> TVMType {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kTVMType,
+            "Requires TVMType, given {}",
+            self.type_code
+        );
+        let ty = unsafe { self.value.inner.v_type };
+        TVMType::from(ty)
+    }
+
+    pub fn to_ctx(&self) -> TVMContext {
+        assert_eq!(
+            self.type_code,
+            TypeCode::kTVMContext,
+            "Requires TVMContext, given {}",
+            self.type_code
+        );
+        let ctx = unsafe { self.value.inner.v_ctx };
+        TVMContext::from(ctx)
+    }    
 }
 
 impl<'b, 'a: 'b, T: 'b + ?Sized> From<&'b T> for TVMArgValue<'a>
@@ -428,5 +479,19 @@ mod tests {
         let s = "hello".to_string();
         let tvm_arg = TVMArgValue::from(&s);
         assert_eq!(tvm_arg.to_string(), s);
+    }
+
+    #[test]
+    fn ty() {
+        let t = TVMType::from("int");
+        let tvm = TVMArgValue::from(&t);
+        assert_eq!(tvm.to_type(), t);
+    }
+
+    #[test]
+    fn ctx() {
+        let c = TVMContext::from("gpu");
+        let tvm = TVMArgValue::from(&c);
+        assert_eq!(tvm.to_ctx(), c);
     }
 }

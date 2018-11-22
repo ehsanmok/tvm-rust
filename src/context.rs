@@ -17,6 +17,21 @@ impl Default for TVMDeviceType {
     }
 }
 
+impl From<TVMDeviceType> for ts::DLDeviceType {
+    fn from(device_type: TVMDeviceType) -> Self {
+        match device_type.0 {
+            1 => ts::DLDeviceType::kDLCPU,
+            2 => ts::DLDeviceType::kDLGPU,
+            3 => ts::DLDeviceType::kDLCPUPinned,
+            4 => ts::DLDeviceType::kDLOpenCL,
+            8 => ts::DLDeviceType::kDLMetal,
+            9 => ts::DLDeviceType::kDLVPI,
+            10 => ts::DLDeviceType::kDLROCM,
+            _ => panic!("Device type not found!"),
+        }
+    }
+}
+
 impl From<ts::DLDeviceType> for TVMDeviceType {
     fn from(device_type: ts::DLDeviceType) -> Self {
         match device_type {
@@ -167,6 +182,15 @@ impl From<ts::DLContext> for TVMContext {
         TVMContext {
             device_type: TVMDeviceType::from(ctx.device_type),
             device_id: ctx.device_id,
+        }
+    }
+}
+
+impl From<TVMContext> for ts::DLContext {
+    fn from(ctx: TVMContext) -> Self {
+        ts::DLContext {
+            device_type: ctx.device_type.into(),
+            device_id: ctx.device_id.into(),
         }
     }
 }
