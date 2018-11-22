@@ -107,7 +107,6 @@ impl NDArray {
 
     pub fn to_bytearray(&self) -> TVMResult<Box<[u8]>> {
         self.to_vec::<u8>().map(|v| v.into_boxed_slice())
-        
     }
 
     pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {

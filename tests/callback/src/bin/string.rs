@@ -8,14 +8,14 @@ use tvm::*;
 
 fn main() {
     register_global_func! {
-    	fn concate_str(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
-    	    let mut ret = "".to_owned();
-    	    for arg in args.iter() {
+        fn concate_str(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
+            let mut ret = "".to_owned();
+            for arg in args.iter() {
                 ret += arg.to_string().as_str();
-    	    }
-    	    let ret_val = TVMRetValue::from(&ret);
-    	    Ok(ret_val)
-    	}
+            }
+            let ret_val = TVMRetValue::from(&ret);
+            Ok(ret_val)
+        }
     }
     let mut registered = function::Builder::default();
     registered.get_function("concate_str".to_owned(), true, false);

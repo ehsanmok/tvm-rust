@@ -10,9 +10,9 @@ use ts;
 use Function;
 use Module;
 use NDArray;
-use TypeCode;
-use TVMType;
 use TVMContext;
+use TVMType;
+use TypeCode;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub(crate) enum ValueKind {
@@ -119,7 +119,7 @@ impl<'a> From<&'a mut [u8]> for TVMValue {
             size: len as usize,
         };
         let inner = ts::TVMValue {
-            v_handle: &arg as *const _ as  *mut c_void,
+            v_handle: &arg as *const _ as *mut c_void,
         };
         mem::forget(arg);
         Self::new(ValueKind::Handle, inner)
@@ -224,18 +224,14 @@ impl<'a> From<&'a NDArray> for TVMValue {
 
 impl<'a> From<&'a TVMType> for TVMValue {
     fn from(ty: &TVMType) -> Self {
-        let inner = ts::TVMValue {
-            v_type: ty.inner
-        };
+        let inner = ts::TVMValue { v_type: ty.inner };
         Self::new(ValueKind::Type, inner)
     }
 }
 
 impl<'a> From<&'a mut TVMType> for TVMValue {
     fn from(ty: &mut TVMType) -> Self {
-        let inner = ts::TVMValue {
-            v_type: ty.inner
-        };
+        let inner = ts::TVMValue { v_type: ty.inner };
         Self::new(ValueKind::Type, inner)
     }
 }
@@ -243,7 +239,7 @@ impl<'a> From<&'a mut TVMType> for TVMValue {
 impl<'a> From<&'a TVMContext> for TVMValue {
     fn from(ctx: &TVMContext) -> Self {
         let inner = ts::TVMValue {
-            v_ctx: ctx.clone().into()
+            v_ctx: ctx.clone().into(),
         };
         Self::new(ValueKind::Context, inner)
     }
@@ -353,7 +349,8 @@ impl<'a> TVMArgValue<'a> {
             self.type_code
         );
         unsafe {
-            let barr_ptr = mem::transmute::<*mut c_void, *mut ts::TVMByteArray>(self.value.inner.v_handle);
+            let barr_ptr =
+                mem::transmute::<*mut c_void, *mut ts::TVMByteArray>(self.value.inner.v_handle);
             let barr = CStr::from_ptr((*barr_ptr).data).to_bytes();
             barr.to_vec().into_boxed_slice()
         }
@@ -419,7 +416,7 @@ impl<'a> TVMArgValue<'a> {
         );
         let ctx = unsafe { self.value.inner.v_ctx };
         TVMContext::from(ctx)
-    }    
+    }
 }
 
 impl<'b, 'a: 'b, T: 'b + ?Sized> From<&'b T> for TVMArgValue<'a>

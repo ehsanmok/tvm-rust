@@ -82,7 +82,7 @@ impl Error for TVMError {
         TVMError::get_last()
     }
 
-    fn cause(&self) -> Option<&Error> {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
         None
     }
 }
