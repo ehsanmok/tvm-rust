@@ -134,6 +134,12 @@ impl NDArray {
         Ok(target)
     }
 
+    pub fn copy_to_ctx(&self, target: &TVMContext) -> TVMResult<NDArray> {
+        let tmp = empty(&mut self.shape().unwrap(), target.clone(), self.dtype());
+        let copy = self.copy_to_ndarray(tmp)?;
+        Ok(copy)
+    }
+
     pub fn from_rust_ndarray<T: Num + Copy>(
         rnd: &ArrayD<T>,
         ctx: TVMContext,
