@@ -20,21 +20,6 @@ pub struct NDArray {
     is_view: bool,
 }
 
-pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
-    let mut handle = ptr::null_mut() as ts::TVMArrayHandle;
-    check_call!(ts::TVMArrayAlloc(
-        shape.as_ptr() as *const i64,
-        shape.len() as c_int,
-        dtype.inner.code as c_int,
-        dtype.inner.bits as c_int,
-        dtype.inner.lanes as c_int,
-        ctx.device_type.0 as c_int,
-        ctx.device_id as c_int,
-        &mut handle as *mut _,
-    ));
-    NDArray::new(handle, false)
-}
-
 impl NDArray {
     pub(crate) fn new(handle: ts::TVMArrayHandle, is_view: bool) -> Self {
         NDArray {
@@ -120,6 +105,11 @@ impl NDArray {
         Ok(v)
     }
 
+    pub fn to_bytearray(&self) -> TVMResult<Box<[u8]>> {
+        self.to_vec::<u8>().map(|v| v.into_boxed_slice())
+        
+    }
+
     pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
         check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
@@ -158,6 +148,21 @@ impl NDArray {
         nd.copy_from_buffer(vec.as_mut_slice());
         Ok(nd)
     }
+}
+
+pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
+    let mut handle = ptr::null_mut() as ts::TVMArrayHandle;
+    check_call!(ts::TVMArrayAlloc(
+        shape.as_ptr() as *const i64,
+        shape.len() as c_int,
+        dtype.inner.code as c_int,
+        dtype.inner.bits as c_int,
+        dtype.inner.lanes as c_int,
+        ctx.device_type.0 as c_int,
+        ctx.device_id as c_int,
+        &mut handle as *mut _,
+    ));
+    NDArray::new(handle, false)
 }
 
 macro_rules! impl_from_ndarray_rustndarray {

@@ -1,4 +1,4 @@
-use std::ffi::OsString;
+use std::ffi::{CStr, CString};
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Deref, DerefMut};
 
@@ -94,15 +94,18 @@ macro_rules! impl_prim_type {
 
 impl_prim_type!(i64, kDLInt);
 impl_prim_type!(i32, kDLInt);
+impl_prim_type!(i16, kDLInt);
 impl_prim_type!(i8, kDLInt);
 impl_prim_type!(u64, kDLUInt);
 impl_prim_type!(u32, kDLUInt);
+impl_prim_type!(u16, kDLUInt);
 impl_prim_type!(u8, kDLUInt);
 impl_prim_type!(f64, kDLFloat);
 impl_prim_type!(f32, kDLFloat);
 impl_prim_type!(str, kStr);
+impl_prim_type!(CStr, kStr);
 impl_prim_type!(String, kStr);
-impl_prim_type!(OsString, kStr);
+impl_prim_type!(CString, kStr);
 impl_prim_type!(TVMContext, kTVMContext);
 impl_prim_type!(TVMType, kTVMType);
 impl_prim_type!(Function, kFuncHandle);
@@ -112,15 +115,18 @@ impl_prim_type!([u8], kBytes);
 
 impl_prim_type!(i64, kDLInt, mut);
 impl_prim_type!(i32, kDLInt, mut);
+impl_prim_type!(i16, kDLInt, mut);
 impl_prim_type!(i8, kDLInt, mut);
 impl_prim_type!(u64, kDLUInt, mut);
 impl_prim_type!(u32, kDLUInt, mut);
+impl_prim_type!(u16, kDLUInt, mut);
 impl_prim_type!(u8, kDLUInt, mut);
 impl_prim_type!(f64, kDLFloat, mut);
 impl_prim_type!(f32, kDLFloat, mut);
 impl_prim_type!(str, kStr, mut);
+impl_prim_type!(CStr, kStr, mut);
 impl_prim_type!(String, kStr, mut);
-impl_prim_type!(OsString, kStr, mut);
+impl_prim_type!(CString, kStr, mut);
 impl_prim_type!(TVMContext, kTVMContext, mut);
 impl_prim_type!(TVMType, kTVMType, mut);
 impl_prim_type!(Function, kFuncHandle, mut);

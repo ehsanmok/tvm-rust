@@ -1,4 +1,4 @@
-use std::ffi::CStr;
+use std::ffi::{CStr, CString};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
@@ -68,9 +68,11 @@ macro_rules! impl_prim_val_mut {
 
 impl_prim_val!(i64, ValueKind::Int, v_int64, i64);
 impl_prim_val!(i32, ValueKind::Int, v_int64, i64);
+impl_prim_val!(i16, ValueKind::Int, v_int64, i64);
 impl_prim_val!(i8, ValueKind::Int, v_int64, i64);
 impl_prim_val!(u64, ValueKind::Int, v_int64, i64);
 impl_prim_val!(u32, ValueKind::Int, v_int64, i64);
+impl_prim_val!(u16, ValueKind::Int, v_int64, i64);
 impl_prim_val!(u8, ValueKind::Int, v_int64, i64);
 impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
 
@@ -79,9 +81,11 @@ impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
 
 impl_prim_val_mut!(i64, ValueKind::Int, v_int64, i64);
 impl_prim_val_mut!(i32, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(i16, ValueKind::Int, v_int64, i64);
 impl_prim_val_mut!(i8, ValueKind::Int, v_int64, i64);
 impl_prim_val_mut!(u64, ValueKind::Int, v_int64, i64);
 impl_prim_val_mut!(u32, ValueKind::Int, v_int64, i64);
+impl_prim_val_mut!(u16, ValueKind::Int, v_int64, i64);
 impl_prim_val_mut!(u8, ValueKind::Int, v_int64, i64);
 impl_prim_val_mut!(bool, ValueKind::Int, v_int64, i64);
 
@@ -90,45 +94,65 @@ impl_prim_val_mut!(f32, ValueKind::Float, v_float64, f64);
 
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
-        let inner = ts::TVMValue {
-            v_handle: arg.as_ptr() as *mut c_void,
+        let len = arg.len();
+        let arg = CString::new(arg).unwrap();
+        let arr = ts::TVMByteArray {
+            data: arg.as_ptr() as *mut c_char,
+            size: len,
         };
+        let inner = ts::TVMValue {
+            v_handle: &arr as *const _ as *mut c_void,
+        };
+        mem::forget(arg);
         Self::new(ValueKind::Handle, inner)
     }
 }
 
 impl<'a> From<&'a mut [u8]> for TVMValue {
     fn from(arg: &mut [u8]) -> TVMValue {
-        let inner = ts::TVMValue {
-            v_handle: arg.as_mut_ptr() as *mut c_void,
+        let len = arg.len();
+        let arg = CString::new(arg).unwrap();
+        let arr = ts::TVMByteArray {
+            data: arg.as_ptr() as *mut c_char,
+            size: len as usize,
         };
+        let inner = ts::TVMValue {
+            v_handle: &arg as *const _ as  *mut c_void,
+        };
+        mem::forget(arg);
         Self::new(ValueKind::Handle, inner)
     }
 }
 
 impl<'a> From<&'a str> for TVMValue {
     fn from(arg: &str) -> TVMValue {
+        let arg = CString::new(arg).unwrap();
         let inner = ts::TVMValue {
             v_str: arg.as_ptr() as *const c_char,
         };
+        mem::forget(arg);
         Self::new(ValueKind::Str, inner)
     }
 }
 
 impl<'a> From<&'a String> for TVMValue {
     fn from(arg: &String) -> TVMValue {
+        let arg = CString::new(arg.as_bytes()).unwrap();
         let inner = ts::TVMValue {
             v_str: arg.as_ptr() as *const c_char,
         };
+        mem::forget(arg);
         Self::new(ValueKind::Str, inner)
     }
 }
 
 impl<'a> From<&'a mut String> for TVMValue {
     fn from(arg: &mut String) -> TVMValue {
+        let arg = CString::new(arg.as_bytes()).unwrap();
         let inner = ts::TVMValue {
             v_str: arg.as_ptr() as *const c_char,
         };
+        mem::forget(arg);
         Self::new(ValueKind::Str, inner)
     }
 }
@@ -292,16 +316,18 @@ impl<'a> TVMArgValue<'a> {
         unsafe { self.value.inner.v_float64 }
     }
 
-    pub fn to_bytes(&self) -> Box<[u8]> {
+    pub fn to_bytearray(&self) -> Box<[u8]> {
         assert_eq!(
             self.type_code,
             TypeCode::kBytes,
             "Requires byte array, but given {}",
             self.type_code
         );
-        let arr = unsafe { mem::transmute::<*mut c_void, *mut i8>(self.value.inner.v_handle) };
-        let barr: &[u8] = unsafe { CStr::from_ptr(arr).to_bytes() };
-        barr.to_vec().into_boxed_slice()
+        unsafe {
+            let barr_ptr = mem::transmute::<*mut c_void, *mut ts::TVMByteArray>(self.value.inner.v_handle);
+            let barr = CStr::from_ptr((*barr_ptr).data).to_bytes();
+            barr.to_vec().into_boxed_slice()
+        }
     }
 
     pub fn to_module(&self) -> Module {
@@ -324,12 +350,12 @@ impl<'a> TVMArgValue<'a> {
         );
         let sptr: *const c_char = unsafe { self.value.inner.v_str };
         let ret_str = unsafe {
-            match CStr::from_ptr(sptr).to_str() {
+            match CStr::from_ptr(self.value.inner.v_str).to_str() {
                 Ok(s) => s,
                 Err(_) => "Invalid UTF-8 message",
             }
         };
-        ret_str.to_owned()
+        ret_str.to_string()
     }
 
     pub fn to_ndarray(&self) -> NDArray {
@@ -345,7 +371,7 @@ impl<'a> TVMArgValue<'a> {
     }
 }
 
-impl<'b, 'a: 'b, T: 'b> From<&'b T> for TVMArgValue<'a>
+impl<'b, 'a: 'b, T: 'b + ?Sized> From<&'b T> for TVMArgValue<'a>
 where
     TVMValue: From<&'b T>,
     TypeCode: From<&'b T>,
@@ -356,3 +382,51 @@ where
 }
 
 pub type TVMRetValue<'a> = TVMArgValue<'a>;
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn numeric() {
+        let a = 42i8;
+        let tvm_a = TVMArgValue::from(&a);
+        assert_eq!(tvm_a.to_int() as i8, a);
+        let a = 42i16;
+        let tvm_a = TVMArgValue::from(&a);
+        assert_eq!(tvm_a.to_int() as i16, a);
+        let a = 42i32;
+        let tvm_a = TVMArgValue::from(&a);
+        assert_eq!(tvm_a.to_int() as i32, a);
+        let a = 42i64;
+        let tvm_a = TVMArgValue::from(&a);
+        assert_eq!(tvm_a.to_int(), a);
+        let b = 42f32;
+        let tvm_b = TVMArgValue::from(&b);
+        assert_eq!(tvm_b.to_float() as f32, b);
+        let b = 42f64;
+        let tvm_b = TVMArgValue::from(&b);
+        assert_eq!(tvm_b.to_float(), b);
+    }
+
+    #[test]
+    fn bytearray() {
+        let v = CString::new(b"hello".to_vec()).unwrap();
+        let v = v.into_bytes();
+        let tvm = TVMArgValue::from(&v[..]);
+        assert_eq!(tvm.to_bytearray(), v.into_boxed_slice());
+        let w = vec![1u8, 2, 3, 4, 5];
+        let tvm = TVMArgValue::from(&w[..]);
+        assert_eq!(tvm.to_bytearray(), w.into_boxed_slice());
+    }
+
+    #[test]
+    fn string() {
+        let s = "hello";
+        let tvm_arg = TVMArgValue::from(s);
+        assert_eq!(tvm_arg.to_string(), s.to_string());
+        let s = "hello".to_string();
+        let tvm_arg = TVMArgValue::from(&s);
+        assert_eq!(tvm_arg.to_string(), s);
+    }
+}
