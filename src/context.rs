@@ -24,9 +24,11 @@ impl From<TVMDeviceType> for ts::DLDeviceType {
             2 => ts::DLDeviceType::kDLGPU,
             3 => ts::DLDeviceType::kDLCPUPinned,
             4 => ts::DLDeviceType::kDLOpenCL,
+            7 => ts::DLDeviceType::kDLVulkan,
             8 => ts::DLDeviceType::kDLMetal,
             9 => ts::DLDeviceType::kDLVPI,
             10 => ts::DLDeviceType::kDLROCM,
+            12 => ts::DLDeviceType::kDLExtDev,
             _ => panic!("Device type not found!"),
         }
     }
@@ -39,9 +41,11 @@ impl From<ts::DLDeviceType> for TVMDeviceType {
             ts::DLDeviceType::kDLGPU => TVMDeviceType(2),
             ts::DLDeviceType::kDLCPUPinned => TVMDeviceType(3),
             ts::DLDeviceType::kDLOpenCL => TVMDeviceType(4),
+            ts::DLDeviceType::kDLVulkan => TVMDeviceType(7),
             ts::DLDeviceType::kDLMetal => TVMDeviceType(8),
             ts::DLDeviceType::kDLVPI => TVMDeviceType(9),
             ts::DLDeviceType::kDLROCM => TVMDeviceType(10),
+            ts::DLDeviceType::kDLExtDev => TVMDeviceType(12),
         }
     }
 }
