@@ -81,10 +81,8 @@ macro_rules! impl_prim_type {
                 TypeCode::$variant
             }
         }
-    };
 
-    ($type:ty, $variant:ident, $mut:ident) => {
-        impl<'a> From<&'a $mut $type> for TypeCode {
+        impl<'a> From<&'a mut $type> for TypeCode {
             fn from(arg: &mut $type) -> Self {
                 TypeCode::$variant
             }
@@ -112,27 +110,6 @@ impl_prim_type!(Function, kFuncHandle);
 impl_prim_type!(Module, kModuleHandle);
 impl_prim_type!(NDArray, kArrayHandle);
 impl_prim_type!([u8], kBytes);
-
-impl_prim_type!(i64, kDLInt, mut);
-impl_prim_type!(i32, kDLInt, mut);
-impl_prim_type!(i16, kDLInt, mut);
-impl_prim_type!(i8, kDLInt, mut);
-impl_prim_type!(u64, kDLUInt, mut);
-impl_prim_type!(u32, kDLUInt, mut);
-impl_prim_type!(u16, kDLUInt, mut);
-impl_prim_type!(u8, kDLUInt, mut);
-impl_prim_type!(f64, kDLFloat, mut);
-impl_prim_type!(f32, kDLFloat, mut);
-impl_prim_type!(str, kStr, mut);
-impl_prim_type!(CStr, kStr, mut);
-impl_prim_type!(String, kStr, mut);
-impl_prim_type!(CString, kStr, mut);
-impl_prim_type!(TVMContext, kTVMContext, mut);
-impl_prim_type!(TVMType, kTVMType, mut);
-impl_prim_type!(Function, kFuncHandle, mut);
-impl_prim_type!(Module, kModuleHandle, mut);
-impl_prim_type!(NDArray, kArrayHandle, mut);
-impl_prim_type!([u8], kBytes, mut);
 
 #[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
 pub struct TVMType {

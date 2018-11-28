@@ -96,7 +96,6 @@ pub mod ty;
 pub mod value;
 
 pub use context::*;
-// pub use function::{Function, BackendPackedCFunc};
 pub use function::Function;
 pub use module::Module;
 pub use ndarray::{empty, NDArray};

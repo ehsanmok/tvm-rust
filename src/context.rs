@@ -106,26 +106,28 @@ impl TVMContext {
     }
 }
 
-macro_rules! impl_ctx {
-    ($ctx:ident, $dldevt:expr) => {
-        impl TVMContext {
-            pub fn $ctx(device_id: i32) -> Self {
-                Self::new(TVMDeviceType($dldevt), device_id)
+macro_rules! impl_ctxs {
+    ($(($ctx:ident, $dldevt:expr));+) => {
+        $(
+            impl TVMContext {
+                pub fn $ctx(device_id: i32) -> Self {
+                    Self::new(TVMDeviceType($dldevt), device_id)
+                }
             }
-        }
+        )+
     };
 }
 
-impl_ctx!(cpu, 1);
-impl_ctx!(gpu, 2);
-impl_ctx!(cpu_pinned, 3);
-impl_ctx!(cuda, 2);
-impl_ctx!(nvptx, 2);
-impl_ctx!(cl, 4);
-impl_ctx!(opencl, 4);
-impl_ctx!(metal, 8);
-impl_ctx!(vpi, 9);
-impl_ctx!(rocm, 10);
+impl_ctxs!((cpu, 1);
+            (gpu, 2);
+            (nvptx, 2);
+            (cuda, 2);
+            (cpu_pinned, 3);
+            (cl, 4);
+            (opencl, 4);
+            (metal, 8);
+            (vpi, 9);
+            (rocm, 10));
 
 impl<'a> From<&'a str> for TVMContext {
     fn from(target: &str) -> Self {

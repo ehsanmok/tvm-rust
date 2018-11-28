@@ -52,11 +52,7 @@ macro_rules! impl_prim_val {
                 Self::new($kind, inner)
             }
         }
-    };
-}
 
-macro_rules! impl_prim_val_mut {
-    ($type:ty, $kind:expr, $field:ident, $cast:ty) => {
         impl<'a> From<&'a mut $type> for TVMValue {
             fn from(arg: &mut $type) -> Self {
                 let inner = ts::TVMValue {
@@ -77,22 +73,8 @@ impl_prim_val!(u32, ValueKind::Int, v_int64, i64);
 impl_prim_val!(u16, ValueKind::Int, v_int64, i64);
 impl_prim_val!(u8, ValueKind::Int, v_int64, i64);
 impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
-
 impl_prim_val!(f64, ValueKind::Float, v_float64, f64);
 impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
-
-impl_prim_val_mut!(i64, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(i32, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(i16, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(i8, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(u64, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(u32, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(u16, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(u8, ValueKind::Int, v_int64, i64);
-impl_prim_val_mut!(bool, ValueKind::Int, v_int64, i64);
-
-impl_prim_val_mut!(f64, ValueKind::Float, v_float64, f64);
-impl_prim_val_mut!(f32, ValueKind::Float, v_float64, f64);
 
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
@@ -159,19 +141,19 @@ impl<'a> From<&'a mut String> for TVMValue {
     }
 }
 
-impl<T> From<*mut T> for TVMValue {
-    fn from(arg: *mut T) -> Self {
+impl<T> From<*const T> for TVMValue {
+    fn from(arg: *const T) -> Self {
         let inner = ts::TVMValue {
-            v_handle: arg as *mut c_void,
+            v_handle: arg as *mut T as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
 }
 
-impl<T> From<*const T> for TVMValue {
-    fn from(arg: *const T) -> Self {
+impl<T> From<*mut T> for TVMValue {
+    fn from(arg: *mut T) -> Self {
         let inner = ts::TVMValue {
-            v_handle: arg as *mut T as *mut c_void,
+            v_handle: arg as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -195,6 +177,15 @@ impl<'a> From<&'a mut Module> for TVMValue {
     }
 }
 
+impl<'a> From<&'a Function> for TVMValue {
+    fn from(arg: &Function) -> Self {
+        let inner = ts::TVMValue {
+            v_handle: arg as *const _ as *mut c_void,
+        };
+        Self::new(ValueKind::Handle, inner)
+    }
+}
+
 impl<'a> From<&'a mut Function> for TVMValue {
     fn from(arg: &mut Function) -> Self {
         let inner = ts::TVMValue {
@@ -204,19 +195,19 @@ impl<'a> From<&'a mut Function> for TVMValue {
     }
 }
 
-impl<'a> From<&'a mut NDArray> for TVMValue {
-    fn from(arr: &mut NDArray) -> Self {
+impl<'a> From<&'a NDArray> for TVMValue {
+    fn from(arr: &NDArray) -> Self {
         let inner = ts::TVMValue {
-            v_handle: arr.handle as *mut _ as *mut c_void,
+            v_handle: arr.handle as *const _ as *mut ts::TVMArray as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
 }
 
-impl<'a> From<&'a NDArray> for TVMValue {
-    fn from(arr: &NDArray) -> Self {
+impl<'a> From<&'a mut NDArray> for TVMValue {
+    fn from(arr: &mut NDArray) -> Self {
         let inner = ts::TVMValue {
-            v_handle: arr.handle as *const _ as *mut ts::TVMArray as *mut c_void,
+            v_handle: arr.handle as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -238,6 +229,15 @@ impl<'a> From<&'a mut TVMType> for TVMValue {
 
 impl<'a> From<&'a TVMContext> for TVMValue {
     fn from(ctx: &TVMContext) -> Self {
+        let inner = ts::TVMValue {
+            v_ctx: ctx.clone().into(),
+        };
+        Self::new(ValueKind::Context, inner)
+    }
+}
+
+impl<'a> From<&'a mut TVMContext> for TVMValue {
+    fn from(ctx: &mut TVMContext) -> Self {
         let inner = ts::TVMValue {
             v_ctx: ctx.clone().into(),
         };
@@ -276,12 +276,6 @@ impl PartialEq for TVMValue {
 
 impl Eq for TVMValue {}
 
-impl Default for TVMValue {
-    fn default() -> Self {
-        TVMValue::new(ValueKind::Int, ts::TVMValue { v_int64: 0 })
-    }
-}
-
 impl Debug for TVMValue {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         unsafe {
@@ -308,7 +302,7 @@ impl DerefMut for TVMValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct TVMArgValue<'a> {
     pub value: TVMValue,
     pub type_code: TypeCode,
