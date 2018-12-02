@@ -13,7 +13,7 @@ use tvm::*;
 
 fn main() {
     register_global_func! {
-        fn sum(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
+        fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
             let mut ret = 0f32;
             let mut shape = vec![2];
             for arg in args.iter() {

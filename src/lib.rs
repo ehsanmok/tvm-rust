@@ -14,7 +14,7 @@
     unused_variables,
     unused_unsafe
 )]
-#![feature(try_from, fn_traits, unboxed_closures, box_syntax)]
+#![feature(try_from, fn_traits, unboxed_closures)]
 
 //! [WIP]
 //!
@@ -25,69 +25,40 @@
 pub extern crate tvm_sys as ts;
 #[macro_use]
 extern crate lazy_static;
+extern crate custom_error;
 extern crate ndarray as rust_ndarray;
 extern crate num_traits;
 
-use std::error::Error;
 use std::ffi::{CStr, CString};
-use std::fmt::{self, Display, Formatter};
-use std::result;
 use std::str;
 
 /// Macro to check the return call to TVM runtime shared library
 macro_rules! check_call {
     ($e:expr) => {{
         if unsafe { $e } != 0 {
-            panic!("{}", ::TVMError::get_last());
+            panic!("{}", $crate::get_last_error());
         }
     }};
 }
 
-/// TVM error type
-#[derive(Debug)]
-pub struct TVMError {
-    msg: &'static str,
-}
-
-impl TVMError {
-    pub fn new(msg: &'static str) -> TVMError {
-        TVMError { msg }
-    }
-    /// Get the last error message from TVM
-    pub fn get_last() -> &'static str {
-        unsafe {
-            match CStr::from_ptr(ts::TVMGetLastError()).to_str() {
-                Ok(s) => s,
-                Err(_) => "Invalid UTF-8 message",
-            }
-        }
-    }
-
-    pub fn set_last(msg: &'static str) {
-        let c_string = CString::new(msg).unwrap();
-        unsafe {
-            ts::TVMAPISetLastError(c_string.as_ptr());
+pub(crate) fn get_last_error() -> &'static str {
+    unsafe {
+        match CStr::from_ptr(ts::TVMGetLastError()).to_str() {
+            Ok(s) => s,
+            Err(_) => "Invalid UTF-8 message",
         }
     }
 }
 
-impl Display for TVMError {
-    fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        write!(f, "{}", TVMError::get_last())
-    }
-}
-
-impl Error for TVMError {
-    fn description(&self) -> &'static str {
-        TVMError::get_last()
-    }
-
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        None
+pub(crate) fn set_last_error(err: &Error) {
+    let c_string = CString::new(err.to_string()).unwrap();
+    unsafe {
+        ts::TVMAPISetLastError(c_string.as_ptr());
     }
 }
 
 pub mod context;
+pub mod errors;
 pub mod function;
 mod internal_api;
 pub mod module;
@@ -96,18 +67,18 @@ pub mod ty;
 pub mod value;
 
 pub use context::*;
+pub use errors::{Error, Result};
 pub use function::Function;
 pub use module::Module;
 pub use ndarray::{empty, NDArray};
-pub use std::os::raw::{c_int, c_void};
 pub use ty::*;
 pub use value::*;
 
-/// TVM result type
-pub type TVMResult<T> = result::Result<T, TVMError>;
-
 pub fn version() -> &'static str {
-    str::from_utf8(ts::TVM_VERSION).unwrap()
+    match str::from_utf8(ts::TVM_VERSION) {
+        Ok(s) => s,
+        Err(_) => "Invalid UTF-8 string",
+    }
 }
 
 #[cfg(test)]
@@ -121,8 +92,8 @@ mod tests {
 
     #[test]
     fn set_error() {
-        let msg: &'static str = "invalid error message";
-        TVMError::set_last(msg);
-        assert_eq!(TVMError::get_last().trim(), msg);
+        let err = Error::EmptyArray;
+        set_last_error(&err);
+        assert_eq!(get_last_error().trim(), err.to_string());
     }
 }

@@ -6,7 +6,7 @@ use ts;
 
 use function;
 use internal_api;
-use TVMResult;
+use Result;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TVMDeviceType(pub usize);
@@ -148,7 +148,7 @@ impl TVMContext {
         ret.to_int() != 0
     }
 
-    pub fn sync(&self) -> TVMResult<()> {
+    pub fn sync(&self) -> Result<()> {
         check_call!(ts::TVMSynchronize(
             self.device_type.0 as i32,
             self.device_id,

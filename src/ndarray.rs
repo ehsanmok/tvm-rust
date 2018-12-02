@@ -9,9 +9,9 @@ use rust_ndarray::{Array, ArrayD};
 
 use ts;
 
+use Error;
+use Result;
 use TVMContext;
-use TVMError;
-use TVMResult;
 use TVMType;
 
 #[derive(Debug)]
@@ -88,9 +88,9 @@ impl NDArray {
         unsafe { (*self.handle).byte_offset as isize }
     }
 
-    pub fn to_vec<T>(&self) -> TVMResult<Vec<T>> {
+    pub fn to_vec<T>(&self) -> Result<Vec<T>> {
         if self.shape().is_none() {
-            return Err(TVMError::new("Cannot copy empty array to Vec"));
+            return Err(Error::EmptyArray);
         }
         let earr = empty(&mut self.shape().unwrap(), TVMContext::cpu(0), self.dtype());
         let target = self.copy_to_ndarray(earr).unwrap();
@@ -105,7 +105,7 @@ impl NDArray {
         Ok(v)
     }
 
-    pub fn to_bytearray(&self) -> TVMResult<Box<[u8]>> {
+    pub fn to_bytearray(&self) -> Result<Box<[u8]>> {
         self.to_vec::<u8>().map(|v| v.into_boxed_slice())
     }
 
@@ -117,14 +117,13 @@ impl NDArray {
         ));
     }
 
-    pub fn copy_to_ndarray(&self, target: NDArray) -> TVMResult<NDArray> {
-        assert_eq!(
-            self.dtype(),
-            target.dtype(),
-            "Copy expects ndarray of dtype {}, but ndarray of dtype {} was given",
-            self.dtype(),
-            target.dtype()
-        );
+    pub fn copy_to_ndarray(&self, target: NDArray) -> Result<NDArray> {
+        if self.dtype() != target.dtype() {
+            return Err(Error::TypeMismatch {
+                expected: self.dtype().to_string(),
+                found: target.dtype().to_string(),
+            });
+        }
         check_call!(ts::TVMArrayCopyFromTo(
             self.handle,
             target.handle,
@@ -133,7 +132,7 @@ impl NDArray {
         Ok(target)
     }
 
-    pub fn copy_to_ctx(&self, target: &TVMContext) -> TVMResult<NDArray> {
+    pub fn copy_to_ctx(&self, target: &TVMContext) -> Result<NDArray> {
         let tmp = empty(&mut self.shape().unwrap(), target.clone(), self.dtype());
         let copy = self.copy_to_ndarray(tmp)?;
         Ok(copy)
@@ -143,7 +142,7 @@ impl NDArray {
         rnd: &ArrayD<T>,
         ctx: TVMContext,
         dtype: TVMType,
-    ) -> TVMResult<Self> {
+    ) -> Result<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
         let mut vec = Array::from_iter(rnd.iter())
@@ -173,10 +172,10 @@ pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray
 macro_rules! impl_from_ndarray_rustndarray {
     ($type:ty, $type_name:tt) => {
         impl<'a> TryFrom<&'a NDArray> for ArrayD<$type> {
-            type Error = TVMError;
-            fn try_from(nd: &NDArray) -> TVMResult<ArrayD<$type>> {
+            type Error = Error;
+            fn try_from(nd: &NDArray) -> Result<ArrayD<$type>> {
                 if nd.shape().is_none() {
-                    panic!("Cannot convert from empty array");
+                    return Err(Error::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
                 Ok(Array::from_shape_vec(
@@ -188,10 +187,10 @@ macro_rules! impl_from_ndarray_rustndarray {
         }
 
         impl<'a> TryFrom<&'a mut NDArray> for ArrayD<$type> {
-            type Error = TVMError;
-            fn try_from(nd: &mut NDArray) -> TVMResult<ArrayD<$type>> {
+            type Error = Error;
+            fn try_from(nd: &mut NDArray) -> Result<ArrayD<$type>> {
                 if nd.shape().is_none() {
-                    panic!("Cannot convert from empty array");
+                    return Err(Error::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
                 Ok(Array::from_shape_vec(
@@ -253,7 +252,7 @@ mod tests {
     }
 
     #[test]
-    #[should_panic(expected = "assertion failed")]
+    #[should_panic(expected = "called `Result::unwrap()` on an `Err`")]
     fn copy_wrong_dtype() {
         let mut shape = vec![4];
         let mut data = vec![1f32, 2., 3., 4.];

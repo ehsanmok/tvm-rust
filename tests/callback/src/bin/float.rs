@@ -8,7 +8,7 @@ use tvm::*;
 
 fn main() {
     register_global_func! {
-        fn sum(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
+        fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
             let mut ret = 0f64;
             for arg in args.iter() {
                 ret += arg.to_float();
