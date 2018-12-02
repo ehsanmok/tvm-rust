@@ -7,8 +7,8 @@ use ts;
 
 use function::{self, Function};
 use internal_api;
-use TVMError;
-use TVMResult;
+use Error;
+use Result;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 
@@ -39,7 +39,7 @@ impl Module {
         self
     }
 
-    pub fn get_function(&self, name: &str, query_import: bool) -> TVMResult<Function> {
+    pub fn get_function(&self, name: &str, query_import: bool) -> Result<Function> {
         let name = name.to_owned();
         let query_import = if query_import == true { 1 } else { 0 };
         let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
@@ -50,10 +50,7 @@ impl Module {
             &mut fhandle as *mut _
         ));
         if fhandle.is_null() {
-            return Err(TVMError::new(stringify!(
-                "function handle is null for {}",
-                name
-            )));
+            return Err(Error::NullHandle { name });
         } else {
             mem::forget(name);
             Ok(Function::new(fhandle, false, false))
@@ -64,7 +61,7 @@ impl Module {
         check_call!(ts::TVMModImport(self.handle, dependent_module.handle))
     }
 
-    pub fn load(path: &Path) -> TVMResult<Module> {
+    pub fn load(path: &Path) -> Result<Module> {
         let mut module_handle = ptr::null_mut() as ts::TVMModuleHandle;
         let path = path.to_owned();
         check_call!(ts::TVMModLoadFromFile(

@@ -320,7 +320,7 @@ impl<'a> TVMArgValue<'a> {
 
     pub fn to_int(&self) -> i64 {
         if self.type_code != TypeCode::kDLInt && self.type_code != TypeCode::kNull {
-            panic!("Requires i64 or NULL, but given {}", self.type_code);
+            panic!("Requires i64 or NULL, but found {:?}", self.type_code);
         }
         unsafe { self.value.inner.v_int64 }
     }
@@ -329,7 +329,7 @@ impl<'a> TVMArgValue<'a> {
         assert_eq!(
             self.type_code,
             TypeCode::kDLFloat,
-            "Requires f64, but given {}",
+            "Requires f64, but found {:?}",
             self.type_code
         );
         unsafe { self.value.inner.v_float64 }
@@ -339,7 +339,7 @@ impl<'a> TVMArgValue<'a> {
         assert_eq!(
             self.type_code,
             TypeCode::kBytes,
-            "Requires byte array, but given {}",
+            "Requires byte array, but found {:?}",
             self.type_code
         );
         unsafe {
@@ -354,7 +354,7 @@ impl<'a> TVMArgValue<'a> {
         assert_eq!(
             self.type_code,
             TypeCode::kModuleHandle,
-            "Requires module handle, given {}",
+            "Requires module handle, but found {:?}",
             self.type_code
         );
         let module_handle = unsafe { self.value.inner.v_handle };
@@ -365,7 +365,7 @@ impl<'a> TVMArgValue<'a> {
         assert_eq!(
             self.type_code,
             TypeCode::kStr,
-            "Requires string, given {}",
+            "Requires string, but found {:?}",
             self.type_code
         );
         let sptr: *const c_char = unsafe { self.value.inner.v_str };
@@ -382,7 +382,7 @@ impl<'a> TVMArgValue<'a> {
         assert_eq!(
             self.type_code,
             TypeCode::kArrayHandle,
-            "Requires Array handle, given {}",
+            "Requires Array handle, but found {:?}",
             self.type_code
         );
         let handle = unsafe { self.value.inner.v_handle };
@@ -394,7 +394,7 @@ impl<'a> TVMArgValue<'a> {
         assert_eq!(
             self.type_code,
             TypeCode::kTVMType,
-            "Requires TVMType, given {}",
+            "Requires TVMType, but found {:?}",
             self.type_code
         );
         let ty = unsafe { self.value.inner.v_type };
@@ -405,7 +405,7 @@ impl<'a> TVMArgValue<'a> {
         assert_eq!(
             self.type_code,
             TypeCode::kTVMContext,
-            "Requires TVMContext, given {}",
+            "Requires TVMContext, but found {:?}",
             self.type_code
         );
         let ctx = unsafe { self.value.inner.v_ctx };

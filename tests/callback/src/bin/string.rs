@@ -8,7 +8,7 @@ use tvm::*;
 
 fn main() {
     register_global_func! {
-        fn concate_str(args: &[TVMArgValue]) -> TVMResult<TVMRetValue> {
+        fn concate_str(args: &[TVMArgValue]) -> Result<TVMRetValue> {
             let mut ret = "".to_owned();
             for arg in args.iter() {
                 ret += arg.to_string().as_str();

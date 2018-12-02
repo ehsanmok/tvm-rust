@@ -8,9 +8,10 @@ use std::sync::Mutex;
 
 use ts;
 
+use Error;
 use Module;
+use Result;
 use TVMArgValue;
-use TVMResult;
 use TVMRetValue;
 use TVMValue;
 use TypeCode;
@@ -188,16 +189,16 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub fn invoke(&mut self) -> TVMResult<TVMRetValue<'a>> {
+    pub fn invoke(&mut self) -> Result<TVMRetValue<'a>> {
         self.clone()(())
     }
 }
 
 impl<'a> FnOnce<((),)> for Builder<'a> {
-    type Output = TVMResult<TVMRetValue<'a>>;
+    type Output = Result<TVMRetValue<'a>>;
     extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
         if self.func.is_none() {
-            panic!("Function handle is None");
+            return Err(Error::NoFunction);
         }
         let mut ret_val = unsafe { mem::uninitialized::<ts::TVMValue>() };
         let mut ret_type_code = 0 as c_int;
@@ -263,9 +264,7 @@ unsafe extern "C" fn tvm_callback(
     let mut value = unsafe { mem::uninitialized::<ts::TVMValue>() };
     let mut tcode = unsafe { mem::uninitialized::<c_int>() };
     let rust_fn = unsafe {
-        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>>(
-            fhandle,
-        )
+        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle)
     };
     for i in 0..len {
         value = args_list[i];
@@ -281,8 +280,14 @@ unsafe extern "C" fn tvm_callback(
             tcode.into(),
         ));
     }
-    // TODO: error handle
-    let rv = rust_fn(local_args.as_slice()).unwrap();
+
+    let rv = match rust_fn(local_args.as_slice()) {
+        Ok(v) => v,
+        Err(msg) => {
+            ::set_last_error(&msg);
+            return -1;
+        }
+    };
     let mut ret_val = *rv.value;
     let mut ret_type_code = rv.type_code as c_int;
     check_call!(ts::TVMCFuncSetReturn(
@@ -296,16 +301,14 @@ unsafe extern "C" fn tvm_callback(
 
 unsafe extern "C" fn tvm_callback_finalizer(fhandle: *mut c_void) {
     let rust_fn = unsafe {
-        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>>(
-            fhandle,
-        )
+        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle)
     };
     mem::drop(rust_fn);
 }
 
-fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>) -> Function {
+fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>) -> Function {
     let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
-    let resource_handle = f as *mut fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>;
+    let resource_handle = f as *mut fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>;
     check_call!(ts::TVMFuncCreateFromCFunc(
         Some(tvm_callback),
         resource_handle as *mut c_void,
@@ -316,10 +319,10 @@ fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>)
 }
 
 pub fn register(
-    f: fn(&[TVMArgValue]) -> TVMResult<TVMRetValue<'static>>,
+    f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>,
     name: String,
     override_: bool,
-) -> TVMResult<()> {
+) -> Result<()> {
     let func = convert_to_tvm_func(f);
     let ovd = if override_ { 1 } else { 0 };
     let name = CString::new(name).unwrap();
@@ -336,12 +339,12 @@ pub fn register(
 macro_rules! register_global_func {
     {
         $(#[$m:meta])*
-        fn $fn_name:ident($args:ident : &[TVMArgValue]) -> TVMResult<TVMRetValue> {
+        fn $fn_name:ident($args:ident : &[TVMArgValue]) -> Result<TVMRetValue> {
             $($code:tt)*
         }
     } => {{
         $(#[$m])*
-        fn $fn_name($args: &[TVMArgValue]) -> TVMResult<TVMRetValue<'static>> {
+        fn $fn_name($args: &[TVMArgValue]) -> Result<TVMRetValue<'static>> {
             $($code)*
         }
 
@@ -356,7 +359,6 @@ mod tests {
     #[test]
     fn list_global_func() {
         let list = list_global_func_names();
-        println!("{:?}", list);
         assert!(list
             .lock()
             .unwrap()
