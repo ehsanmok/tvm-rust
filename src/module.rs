@@ -62,15 +62,15 @@ impl Module {
     }
 
     pub fn load(path: &Path) -> Result<Module> {
-        let mut module_handle = ptr::null_mut() as ts::TVMModuleHandle;
         let path = path.to_owned();
-        check_call!(ts::TVMModLoadFromFile(
-            path.to_str().unwrap().as_ptr() as *const c_char,
-            path.extension().unwrap().to_str().unwrap().as_ptr() as *const c_char,
-            &mut module_handle as *mut _
-        ));
-        let ret = Self::new(module_handle, false, None);
-        Ok(ret)
+        let path_str = path.to_str().unwrap().to_owned();
+        let ext = path.extension().unwrap().to_str().unwrap().to_owned();
+        let func = internal_api::get_api("module._LoadFromFile".to_owned());
+        let ret = function::Builder::from(func)
+            .args(&[path_str, ext])
+            .invoke()?;
+        mem::forget(path);
+        Ok(ret.to_module())
     }
 
     pub fn enabled(&self, target: String) -> bool {

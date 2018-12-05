@@ -18,7 +18,7 @@ fn main() {
 
         let mut ret = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
         let path = Path::new("add_cpu.so");
-        let mut fadd = Module::load(path).unwrap();
+        let mut fadd = Module::load(&path).unwrap();
         assert!(fadd.enabled("cpu".to_owned()));
         fadd = fadd.entry_func();
         function::Builder::from(&mut fadd)
