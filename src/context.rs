@@ -90,11 +90,11 @@ pub struct TVMContext {
     /// Supported devices
     pub device_type: TVMDeviceType,
     /// Device id
-    pub device_id: i32,
+    pub device_id: usize,
 }
 
 impl TVMContext {
-    pub fn new(device_type: TVMDeviceType, device_id: i32) -> Self {
+    pub fn new(device_type: TVMDeviceType, device_id: usize) -> Self {
         TVMContext {
             device_type: device_type,
             device_id: device_id,
@@ -110,7 +110,7 @@ macro_rules! impl_ctxs {
     ($(($ctx:ident, $dldevt:expr));+) => {
         $(
             impl TVMContext {
-                pub fn $ctx(device_id: i32) -> Self {
+                pub fn $ctx(device_id: usize) -> Self {
                     Self::new(TVMDeviceType($dldevt), device_id)
                 }
             }
@@ -138,7 +138,7 @@ impl<'a> From<&'a str> for TVMContext {
 impl TVMContext {
     pub fn exist(&self) -> bool {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
-        let dt = self.device_type.0 as i32;
+        let dt = self.device_type.0 as usize;
         let ret = function::Builder::from(func)
             .arg(&dt)
             .arg(&self.device_id)
@@ -151,7 +151,7 @@ impl TVMContext {
     pub fn sync(&self) -> Result<()> {
         check_call!(ts::TVMSynchronize(
             self.device_type.0 as i32,
-            self.device_id,
+            self.device_id as i32,
             ptr::null_mut() as *mut c_void
         ));
         Ok(())
@@ -163,7 +163,7 @@ macro_rules! impl_dev_attrs {
         impl TVMContext {
             pub fn $attr_name(&self) -> usize {
                 let func = ::internal_api::get_api("_GetDeviceAttr".to_owned());
-                let dt = self.device_type.0 as i32;
+                let dt = self.device_type.0 as usize;
                 let ret = function::Builder::from(func)
                     .args(&[dt, self.device_id, $attr_kind])
                     .invoke()
@@ -187,7 +187,7 @@ impl From<ts::DLContext> for TVMContext {
     fn from(ctx: ts::DLContext) -> Self {
         TVMContext {
             device_type: TVMDeviceType::from(ctx.device_type),
-            device_id: ctx.device_id,
+            device_id: ctx.device_id as usize,
         }
     }
 }
@@ -196,7 +196,7 @@ impl From<TVMContext> for ts::DLContext {
     fn from(ctx: TVMContext) -> Self {
         ts::DLContext {
             device_type: ctx.device_type.into(),
-            device_id: ctx.device_id.into(),
+            device_id: ctx.device_id as i32,
         }
     }
 }

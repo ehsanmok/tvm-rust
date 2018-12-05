@@ -8,6 +8,7 @@ use function::Function;
 use module::Module;
 use ndarray::NDArray;
 use TVMContext;
+use TVMDeviceType;
 
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -90,6 +91,7 @@ macro_rules! impl_prim_type {
     };
 }
 
+impl_prim_type!(usize, kDLInt);
 impl_prim_type!(i64, kDLInt);
 impl_prim_type!(i32, kDLInt);
 impl_prim_type!(i16, kDLInt);
@@ -105,6 +107,7 @@ impl_prim_type!(CStr, kStr);
 impl_prim_type!(String, kStr);
 impl_prim_type!(CString, kStr);
 impl_prim_type!(TVMContext, kTVMContext);
+impl_prim_type!(TVMDeviceType, kDLInt);
 impl_prim_type!(TVMType, kTVMType);
 impl_prim_type!(Function, kFuncHandle);
 impl_prim_type!(Module, kModuleHandle);

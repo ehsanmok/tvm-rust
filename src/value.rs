@@ -11,6 +11,7 @@ use Function;
 use Module;
 use NDArray;
 use TVMContext;
+use TVMDeviceType;
 use TVMType;
 use TypeCode;
 
@@ -23,7 +24,6 @@ pub(crate) enum ValueKind {
     Type,
     Context,
     Return,
-    Unknown,
 }
 
 #[derive(Clone)]
@@ -64,6 +64,7 @@ macro_rules! impl_prim_val {
     };
 }
 
+impl_prim_val!(usize, ValueKind::Int, v_int64, i64);
 impl_prim_val!(i64, ValueKind::Int, v_int64, i64);
 impl_prim_val!(i32, ValueKind::Int, v_int64, i64);
 impl_prim_val!(i16, ValueKind::Int, v_int64, i64);
@@ -242,6 +243,24 @@ impl<'a> From<&'a mut TVMContext> for TVMValue {
             v_ctx: ctx.clone().into(),
         };
         Self::new(ValueKind::Context, inner)
+    }
+}
+
+impl<'a> From<&'a TVMDeviceType> for TVMValue {
+    fn from(dev: &TVMDeviceType) -> Self {
+        let inner = ts::TVMValue {
+            v_int64: dev.0 as i64,
+        };
+        Self::new(ValueKind::Int, inner)
+    }
+}
+
+impl<'a> From<&'a mut TVMDeviceType> for TVMValue {
+    fn from(dev: &mut TVMDeviceType) -> Self {
+        let inner = ts::TVMValue {
+            v_int64: dev.0 as i64,
+        };
+        Self::new(ValueKind::Int, inner)
     }
 }
 
