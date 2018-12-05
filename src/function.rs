@@ -137,7 +137,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub fn arg<'b, T>(&mut self, arg: &'b T) -> &mut Self
+    pub fn arg<'b, T: ?Sized>(&mut self, arg: &'b T) -> &mut Self
     where
         TVMValue: From<&'b T>,
         TypeCode: From<&'b T>,
