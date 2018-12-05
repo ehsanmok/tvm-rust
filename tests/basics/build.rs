@@ -12,5 +12,8 @@ fn main() {
     if output.stderr.len() > 0 {
         panic!(String::from_utf8(output.stderr).unwrap());
     }
-    println!("cargo:rustc-link-search=native={}", script_path);
+    println!(
+        "cargo:rustc-link-search=native={}",
+        env!("CARGO_MANIFEST_DIR")
+    );
 }
