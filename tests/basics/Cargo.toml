@@ -7,7 +7,7 @@ license = "Apache-2.0"
 build = "build.rs"
 
 [dependencies]
-ndarray = "0.11.2"
+ndarray = "0.12.1"
 tvm-rust = { path = "../../" }
 
 [features]
