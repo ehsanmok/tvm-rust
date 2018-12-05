@@ -9,7 +9,6 @@
 #![doc(html_root_url = "https://docs.rs/ts-rust/0.0.2/")]
 #![allow(
     non_camel_case_types,
-    dead_code,
     unused_assignments,
     unused_variables,
     unused_unsafe
