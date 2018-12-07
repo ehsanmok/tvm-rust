@@ -5,4 +5,5 @@ Cargo.lock
 /tvm-sys/target
 /tests/callback/target
 /tests/basics/target
-
+/examples/resnet/target
+/examples/resnet/deploy_*

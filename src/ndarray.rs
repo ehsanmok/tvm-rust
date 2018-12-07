@@ -1,6 +1,6 @@
 use std::convert::TryFrom;
 use std::mem;
-use std::os::raw::c_int;
+use std::os::raw::{c_char, c_int};
 use std::ptr;
 use std::slice;
 
@@ -109,6 +109,7 @@ impl NDArray {
         self.to_vec::<u8>().map(|v| v.into_boxed_slice())
     }
 
+    // TODO: restrict to i32, u32, f32 as TVMType repr
     pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
         check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
@@ -178,11 +179,10 @@ macro_rules! impl_from_ndarray_rustndarray {
                     return Err(Error::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(Array::from_shape_vec(
-                    nd.shape().unwrap().clone(),
-                    nd.to_vec::<$type>().unwrap(),
+                Ok(
+                    Array::from_shape_vec(nd.shape().unwrap().clone(), nd.to_vec::<$type>()?)
+                        .unwrap(),
                 )
-                .unwrap())
             }
         }
 
@@ -193,11 +193,10 @@ macro_rules! impl_from_ndarray_rustndarray {
                     return Err(Error::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(Array::from_shape_vec(
-                    nd.shape().unwrap().clone(),
-                    nd.to_vec::<$type>().unwrap(),
+                Ok(
+                    Array::from_shape_vec(nd.shape().unwrap().clone(), nd.to_vec::<$type>()?)
+                        .unwrap(),
                 )
-                .unwrap())
             }
         }
     };
@@ -211,6 +210,34 @@ impl Drop for NDArray {
     fn drop(&mut self) {
         if !self.is_view {
             check_call!(ts::TVMArrayFree(self.handle));
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub struct TVMByteArray {
+    pub(crate) inner: ts::TVMByteArray,
+}
+
+impl TVMByteArray {
+    fn new(barr: ts::TVMByteArray) -> TVMByteArray {
+        TVMByteArray { inner: barr }
+    }
+}
+
+impl<'a> From<&'a Vec<u8>> for TVMByteArray {
+    fn from(arg: &Vec<u8>) -> Self {
+        unsafe {
+            let sz = arg.len();
+            let mut ret_buf: Vec<c_char> = Vec::with_capacity(sz);
+            ret_buf.set_len(sz);
+            let data_ptr = arg.as_ptr() as *const c_char;
+            data_ptr.copy_to(ret_buf.as_mut_ptr(), sz);
+            let barr = ts::TVMByteArray {
+                data: ret_buf.as_ptr(),
+                size: arg.len(),
+            };
+            TVMByteArray::new(barr)
         }
     }
 }

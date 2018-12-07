@@ -69,7 +69,7 @@ pub use context::*;
 pub use errors::{Error, Result};
 pub use function::Function;
 pub use module::Module;
-pub use ndarray::{empty, NDArray};
+pub use ndarray::{empty, NDArray, TVMByteArray};
 pub use ty::*;
 pub use value::*;
 
