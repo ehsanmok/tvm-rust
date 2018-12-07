@@ -158,7 +158,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub fn args<'b, T: 'b, I>(&mut self, args: I) -> &mut Self
+    pub fn args<'b, T: 'b + ?Sized, I>(&mut self, args: I) -> &mut Self
     where
         I: IntoIterator<Item = &'b T>,
         TVMValue: From<&'b T>,
@@ -170,7 +170,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub fn accept_ret<'b, T: 'b>(&mut self, arg: &'b mut T) -> &mut Self
+    pub fn accept_ret<'b, T: 'b + ?Sized>(&mut self, arg: &'b mut T) -> &mut Self
     where
         TVMValue: From<&'b T>,
         TypeCode: From<&'b T>,
