@@ -227,18 +227,24 @@ impl TVMByteArray {
 
 impl<'a> From<&'a Vec<u8>> for TVMByteArray {
     fn from(arg: &Vec<u8>) -> Self {
-        unsafe {
-            let sz = arg.len();
-            let mut ret_buf: Vec<c_char> = Vec::with_capacity(sz);
-            ret_buf.set_len(sz);
-            let data_ptr = arg.as_ptr() as *const c_char;
-            data_ptr.copy_to(ret_buf.as_mut_ptr(), sz);
-            let barr = ts::TVMByteArray {
-                data: ret_buf.as_ptr(),
-                size: arg.len(),
-            };
-            TVMByteArray::new(barr)
-        }
+        // unsafe {
+        //     let sz = arg.len();
+        //     let mut ret_buf: Vec<c_char> = Vec::with_capacity(sz);
+        //     ret_buf.set_len(sz);
+        //     let data_ptr = arg.as_ptr() as *const c_char;
+        //     data_ptr.copy_to(ret_buf.as_mut_ptr(), sz);
+        //     let barr = ts::TVMByteArray {
+        //         data: ret_buf.as_ptr(),
+        //         size: arg.len(),
+        //     };
+        //     TVMByteArray::new(barr)
+        // }
+
+        let barr = ts::TVMByteArray {
+            data: arg.as_ptr() as *const c_char,
+            size: arg.len(),
+        };
+        TVMByteArray::new(barr)
     }
 }
 

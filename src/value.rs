@@ -303,25 +303,25 @@ impl<'a> From<&'a mut TVMDeviceType> for TVMValue {
 
 impl<'a> From<&'a TVMByteArray> for TVMValue {
     fn from(barr: &TVMByteArray) -> Self {
-        let barr = barr.clone();
+        // let barr = barr.clone();
         let inner = ts::TVMValue {
             v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
         };
-        mem::forget(barr);
+        // mem::forget(barr);
         Self::new(ValueKind::Bytes, inner)
     }
 }
 
-impl<'a> From<&'a mut TVMByteArray> for TVMValue {
-    fn from(barr: &mut TVMByteArray) -> Self {
-        let barr = barr.clone();
-        let inner = ts::TVMValue {
-            v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
-        };
-        mem::forget(barr);
-        Self::new(ValueKind::Bytes, inner)
-    }
-}
+// impl<'a> From<&'a mut TVMByteArray> for TVMValue {
+//     fn from(barr: &mut TVMByteArray) -> Self {
+//         let barr = barr.clone();
+//         let inner = ts::TVMValue {
+//             v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
+//         };
+//         mem::forget(barr);
+//         Self::new(ValueKind::Bytes, inner)
+//     }
+// }
 
 impl PartialEq for TVMValue {
     fn eq(&self, other: &TVMValue) -> bool {
