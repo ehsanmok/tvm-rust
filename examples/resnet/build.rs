@@ -1,10 +1,7 @@
 use std::process::Command;
 
 fn main() {
-    // #[cfg(feature = "cpu")]
     let script_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/build_resnet.py");
-    // #[cfg(feature = "gpu")]
-    // let script_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/tvm_add_gpu.py");
     let output = Command::new("python")
         .args(&[&script_path, env!("CARGO_MANIFEST_DIR")])
         .output()
