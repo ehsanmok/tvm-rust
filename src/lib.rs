@@ -56,6 +56,7 @@ pub(crate) fn set_last_error(err: &Error) {
     }
 }
 
+pub mod bytearray;
 pub mod context;
 pub mod errors;
 pub mod function;
@@ -65,6 +66,7 @@ pub mod ndarray;
 pub mod ty;
 pub mod value;
 
+pub use bytearray::TVMByteArray;
 pub use context::*;
 pub use errors::{Error, Result};
 pub use function::Function;

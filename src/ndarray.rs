@@ -45,6 +45,7 @@ impl NDArray {
         Some(slc.to_vec())
     }
 
+    // TODO: inline
     pub fn size(&self) -> Option<usize> {
         self.shape().map(|v| v.into_iter().product())
     }
@@ -109,6 +110,7 @@ impl NDArray {
         self.to_vec::<u8>().map(|v| v.into_boxed_slice())
     }
 
+    // TODO: restrict to i32, u32, f32 as TVMType repr
     pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
         check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
@@ -178,11 +180,10 @@ macro_rules! impl_from_ndarray_rustndarray {
                     return Err(Error::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(Array::from_shape_vec(
-                    nd.shape().unwrap().clone(),
-                    nd.to_vec::<$type>().unwrap(),
+                Ok(
+                    Array::from_shape_vec(nd.shape().unwrap().clone(), nd.to_vec::<$type>()?)
+                        .unwrap(),
                 )
-                .unwrap())
             }
         }
 
@@ -193,11 +194,10 @@ macro_rules! impl_from_ndarray_rustndarray {
                     return Err(Error::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(Array::from_shape_vec(
-                    nd.shape().unwrap().clone(),
-                    nd.to_vec::<$type>().unwrap(),
+                Ok(
+                    Array::from_shape_vec(nd.shape().unwrap().clone(), nd.to_vec::<$type>()?)
+                        .unwrap(),
                 )
-                .unwrap())
             }
         }
     };

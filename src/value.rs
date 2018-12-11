@@ -10,6 +10,7 @@ use ts;
 use Function;
 use Module;
 use NDArray;
+use TVMByteArray;
 use TVMContext;
 use TVMDeviceType;
 use TVMType;
@@ -21,6 +22,7 @@ pub(crate) enum ValueKind {
     Float,
     Handle,
     Str,
+    Bytes,
     Type,
     Context,
     Return,
@@ -77,6 +79,7 @@ impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
 impl_prim_val!(f64, ValueKind::Float, v_float64, f64);
 impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
 
+// TODO: cleanup
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
         let len = arg.len();
@@ -88,6 +91,7 @@ impl<'a> From<&'a [u8]> for TVMValue {
         let inner = ts::TVMValue {
             v_handle: &arr as *const _ as *mut c_void,
         };
+        mem::forget(arr);
         mem::forget(arg);
         Self::new(ValueKind::Handle, inner)
     }
@@ -142,21 +146,34 @@ impl<'a> From<&'a mut String> for TVMValue {
     }
 }
 
-impl<T> From<*const T> for TVMValue {
-    fn from(arg: *const T) -> Self {
+impl<'a> From<&'a CString> for TVMValue {
+    fn from(arg: &CString) -> TVMValue {
+        let arg = arg.clone();
         let inner = ts::TVMValue {
-            v_handle: arg as *mut T as *mut c_void,
+            v_str: arg.as_ptr() as *const c_char,
         };
-        Self::new(ValueKind::Handle, inner)
+        mem::forget(arg);
+        Self::new(ValueKind::Str, inner)
     }
 }
 
-impl<T> From<*mut T> for TVMValue {
-    fn from(arg: *mut T) -> Self {
+impl<'a> From<&'a mut CString> for TVMValue {
+    fn from(arg: &mut CString) -> TVMValue {
         let inner = ts::TVMValue {
-            v_handle: arg as *mut c_void,
+            v_str: arg.as_ptr() as *const c_char,
         };
-        Self::new(ValueKind::Handle, inner)
+        Self::new(ValueKind::Str, inner)
+    }
+}
+
+impl<'a> From<&'a CStr> for TVMValue {
+    fn from(arg: &CStr) -> TVMValue {
+        let arg = arg.clone();
+        let inner = ts::TVMValue {
+            v_str: arg.as_ptr() as *const c_char,
+        };
+        mem::forget(arg);
+        Self::new(ValueKind::Str, inner)
     }
 }
 
@@ -264,6 +281,24 @@ impl<'a> From<&'a mut TVMDeviceType> for TVMValue {
     }
 }
 
+impl<'a> From<&'a TVMByteArray> for TVMValue {
+    fn from(barr: &TVMByteArray) -> Self {
+        let inner = ts::TVMValue {
+            v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
+        };
+        Self::new(ValueKind::Bytes, inner)
+    }
+}
+
+impl<'a> From<&'a mut TVMByteArray> for TVMValue {
+    fn from(barr: &mut TVMByteArray) -> Self {
+        let inner = ts::TVMValue {
+            v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
+        };
+        Self::new(ValueKind::Bytes, inner)
+    }
+}
+
 impl PartialEq for TVMValue {
     fn eq(&self, other: &TVMValue) -> bool {
         if self.kind != other.kind {
@@ -354,6 +389,7 @@ impl<'a> TVMArgValue<'a> {
         unsafe { self.value.inner.v_float64 }
     }
 
+    // TODO: convert to TVMByteArray instead
     pub fn to_bytearray(&self) -> Box<[u8]> {
         assert_eq!(
             self.type_code,
