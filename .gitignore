@@ -7,3 +7,5 @@ Cargo.lock
 /tests/basics/target
 /examples/resnet/target
 /examples/resnet/deploy_*
+/examples/resnet/*.png
+/examples/resnet/synset.*
