@@ -159,11 +159,9 @@ impl<'a> From<&'a CString> for TVMValue {
 
 impl<'a> From<&'a mut CString> for TVMValue {
     fn from(arg: &mut CString) -> TVMValue {
-        let arg = arg.clone();
         let inner = ts::TVMValue {
             v_str: arg.as_ptr() as *const c_char,
         };
-        mem::forget(arg);
         Self::new(ValueKind::Str, inner)
     }
 }
@@ -176,24 +174,6 @@ impl<'a> From<&'a CStr> for TVMValue {
         };
         mem::forget(arg);
         Self::new(ValueKind::Str, inner)
-    }
-}
-
-impl<T> From<*const T> for TVMValue {
-    fn from(arg: *const T) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arg as *mut T as *mut c_void,
-        };
-        Self::new(ValueKind::Handle, inner)
-    }
-}
-
-impl<T> From<*mut T> for TVMValue {
-    fn from(arg: *mut T) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arg as *mut c_void,
-        };
-        Self::new(ValueKind::Handle, inner)
     }
 }
 
@@ -303,25 +283,21 @@ impl<'a> From<&'a mut TVMDeviceType> for TVMValue {
 
 impl<'a> From<&'a TVMByteArray> for TVMValue {
     fn from(barr: &TVMByteArray) -> Self {
-        // let barr = barr.clone();
         let inner = ts::TVMValue {
             v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
         };
-        // mem::forget(barr);
         Self::new(ValueKind::Bytes, inner)
     }
 }
 
-// impl<'a> From<&'a mut TVMByteArray> for TVMValue {
-//     fn from(barr: &mut TVMByteArray) -> Self {
-//         let barr = barr.clone();
-//         let inner = ts::TVMValue {
-//             v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
-//         };
-//         mem::forget(barr);
-//         Self::new(ValueKind::Bytes, inner)
-//     }
-// }
+impl<'a> From<&'a mut TVMByteArray> for TVMValue {
+    fn from(barr: &mut TVMByteArray) -> Self {
+        let inner = ts::TVMValue {
+            v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
+        };
+        Self::new(ValueKind::Bytes, inner)
+    }
+}
 
 impl PartialEq for TVMValue {
     fn eq(&self, other: &TVMValue) -> bool {
@@ -413,6 +389,7 @@ impl<'a> TVMArgValue<'a> {
         unsafe { self.value.inner.v_float64 }
     }
 
+    // TODO: convert to TVMByteArray instead
     pub fn to_bytearray(&self) -> Box<[u8]> {
         assert_eq!(
             self.type_code,
