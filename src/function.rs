@@ -58,7 +58,7 @@ pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Opti
     }
 }
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Hash)]
 pub struct Function {
     handle: ts::TVMFunctionHandle,
     is_global: bool,
@@ -96,13 +96,25 @@ impl Function {
     }
 }
 
+impl Clone for Function {
+    fn clone(&self) -> Function {
+        if !self.is_released {
+            Self {
+                handle: self.handle,
+                is_global: true,
+                is_released: false,
+            }
+        } else {
+            panic!("Released function cannot be cloned!");
+        }
+    }
+}
+
 impl Drop for Function {
     fn drop(&mut self) {
-        if !self.is_released {
-            if !self.is_global {
-                check_call!(ts::TVMFuncFree(self.handle));
-                self.is_released = true;
-            }
+        if !self.is_released & !self.is_global {
+            check_call!(ts::TVMFuncFree(self.handle));
+            self.is_released = true;
         }
     }
 }
@@ -202,34 +214,44 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
         }
         let mut ret_val = unsafe { mem::uninitialized::<ts::TVMValue>() };
         let mut ret_type_code = 0 as c_int;
-        let arg_buf = self.arg_buf.clone().unwrap();
-        let mut num_args = arg_buf.len();
-        let mut values = arg_buf
-            .iter()
-            .map(|tav| tav.clone().value.inner)
-            .collect::<Vec<ts::TVMValue>>();
-        let mut tcodes = arg_buf
-            .iter()
-            .map(|tav| tav.clone().type_code as c_int)
-            .collect::<Vec<_>>();
-
-        if self.ret_buf.is_some() {
-            num_args = num_args + 1;
-            ret_val = *self.ret_buf.clone().unwrap()[0].value;
-            ret_type_code = self.ret_buf.clone().unwrap()[0].type_code as c_int;
-            values.append(&mut vec![ret_val]);
-            tcodes.append(&mut vec![ret_type_code]);
+        if self.arg_buf.is_some() {
+            let arg_buf = self.arg_buf.unwrap();
+            let mut num_args = arg_buf.len();
+            let mut values = arg_buf
+                .iter()
+                .map(|tav| tav.value.inner)
+                .collect::<Vec<ts::TVMValue>>();
+            let mut tcodes = arg_buf
+                .iter()
+                .map(|tav| tav.type_code as c_int)
+                .collect::<Vec<_>>();
+            if self.ret_buf.is_some() {
+                num_args = num_args + 1;
+                ret_val = *self.ret_buf.clone().unwrap()[0].value;
+                ret_type_code = self.ret_buf.clone().unwrap()[0].type_code as c_int;
+                values.append(&mut vec![ret_val]);
+                tcodes.append(&mut vec![ret_type_code]);
+            }
+            values.truncate(num_args);
+            tcodes.truncate(num_args);
+            check_call!(ts::TVMFuncCall(
+                self.func.unwrap().handle,
+                values.as_mut_ptr(),
+                tcodes.as_mut_ptr(),
+                num_args as c_int,
+                &mut ret_val as *mut _,
+                &mut ret_type_code as *mut _
+            ));
+        } else {
+            check_call!(ts::TVMFuncCall(
+                self.func.unwrap().handle,
+                ptr::null_mut(),
+                ptr::null_mut(),
+                0 as c_int,
+                &mut ret_val as *mut _,
+                &mut ret_type_code as *mut _
+            ));
         }
-        values.truncate(num_args);
-        tcodes.truncate(num_args);
-        check_call!(ts::TVMFuncCall(
-            self.func.unwrap().handle,
-            values.as_mut_ptr(),
-            tcodes.as_mut_ptr(),
-            num_args as c_int,
-            &mut ret_val as *mut _,
-            &mut ret_type_code as *mut _
-        ));
         let ret = TVMRetValue::new(
             TVMValue::new(ValueKind::Return, ret_val),
             ret_type_code.into(),
@@ -240,6 +262,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
 
 impl<'a> From<Function> for Builder<'a> {
     fn from(func: Function) -> Self {
+        // println!("builder from: {:?}", func.as_handle());
         Builder::new(Some(func), None, None)
     }
 }

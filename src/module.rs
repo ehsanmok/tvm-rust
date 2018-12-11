@@ -1,3 +1,4 @@
+use std::ffi::CString;
 use std::mem;
 use std::os::raw::{c_char, c_int};
 use std::path::Path;
@@ -40,7 +41,7 @@ impl Module {
     }
 
     pub fn get_function(&self, name: &str, query_import: bool) -> Result<Function> {
-        let name = name.to_owned();
+        let name = CString::new(name).expect("function name cannot be passed as C String");
         let query_import = if query_import == true { 1 } else { 0 };
         let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
         check_call!(ts::TVMModGetFunction(
@@ -50,7 +51,9 @@ impl Module {
             &mut fhandle as *mut _
         ));
         if fhandle.is_null() {
-            return Err(Error::NullHandle { name });
+            return Err(Error::NullHandle {
+                name: name.into_string().unwrap(),
+            });
         } else {
             mem::forget(name);
             Ok(Function::new(fhandle, false, false))
