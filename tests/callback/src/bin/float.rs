@@ -19,7 +19,7 @@ fn main() {
     }
 
     let mut registered = function::Builder::default();
-    registered.get_function("sum".to_owned(), true, false);
+    registered.get_function("sum", true, false);
     assert!(registered.func.is_some());
     registered.args(&[10f64, 20f64, 30f64]);
     assert_eq!(registered.invoke().unwrap().to_float(), 60f64);

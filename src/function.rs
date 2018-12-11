@@ -74,12 +74,13 @@ impl Function {
         }
     }
 
-    pub fn get_function(name: String, is_global: bool, allow_missing: bool) -> Option<Function> {
+    pub fn get_function(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
+        let name = CString::new(name).unwrap();
         GLOBAL_FUNCTION_NAMES
             .lock()
             .unwrap()
             .iter()
-            .find(|&&s| s == &name)
+            .find(|&&s| s == name.to_str().expect("Invalid UTF-8 name"))
             .map(|nm| get_global_func(nm, is_global, allow_missing).unwrap())
     }
 
@@ -139,12 +140,7 @@ impl<'a> Builder<'a> {
         }
     }
 
-    pub fn get_function(
-        &mut self,
-        name: String,
-        is_global: bool,
-        allow_missing: bool,
-    ) -> &mut Self {
+    pub fn get_function(&mut self, name: &str, is_global: bool, allow_missing: bool) -> &mut Self {
         self.func = Function::get_function(name, is_global, allow_missing);
         self
     }
@@ -392,17 +388,14 @@ mod tests {
 
     #[test]
     fn get_fn() {
-        assert!(
-            Function::get_function("tvm.graph_runtime.remote_create".to_owned(), true, false)
-                .is_some()
-        );
-        assert!(Function::get_function("does not exists!".to_owned(), false, false).is_none());
+        assert!(Function::get_function("tvm.graph_runtime.remote_create", true, false).is_some());
+        assert!(Function::get_function("does not exists!", false, false).is_none());
     }
 
     #[test]
     fn provide_args() {
         let mut func = Builder::default();
-        func.get_function("tvm.graph_runtime.remote_create".to_owned(), true, false)
+        func.get_function("tvm.graph_runtime.remote_create", true, false)
             .args(&[10, 20])
             .arg(&"test".to_owned());
         assert!(func.arg_buf.is_some());

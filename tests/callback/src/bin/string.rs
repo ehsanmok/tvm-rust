@@ -18,7 +18,7 @@ fn main() {
         }
     }
     let mut registered = function::Builder::default();
-    registered.get_function("concate_str".to_owned(), true, false);
+    registered.get_function("concate_str", true, false);
     assert!(registered.func.is_some());
     let a = "a".to_string();
     let b = "b".to_string();

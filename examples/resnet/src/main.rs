@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<Error>> {
     let lib = Module::load(&Path::new("deploy_lib.so"))?;
 
     let runtime_create_fn =
-        Function::get_function("tvm.graph_runtime.create".to_string(), true, false).unwrap();
+        Function::get_function("tvm.graph_runtime.create", true, false).unwrap();
 
     let runtime_create_fn_ret = function::Builder::from(runtime_create_fn)
         .arg(&graph)
