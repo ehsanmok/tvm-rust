@@ -9,7 +9,7 @@ pub struct TVMByteArray {
 }
 
 impl TVMByteArray {
-    fn new(barr: ts::TVMByteArray) -> TVMByteArray {
+    pub(crate) fn new(barr: ts::TVMByteArray) -> TVMByteArray {
         TVMByteArray { inner: barr }
     }
 

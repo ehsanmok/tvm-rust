@@ -299,37 +299,6 @@ impl<'a> From<&'a mut TVMByteArray> for TVMValue {
     }
 }
 
-impl PartialEq for TVMValue {
-    fn eq(&self, other: &TVMValue) -> bool {
-        if self.kind != other.kind {
-            return false;
-        }
-        match &self {
-            TVMValue { kind, inner } if kind == &ValueKind::Int => unsafe {
-                inner.v_int64 == other.inner.v_int64
-            },
-            TVMValue { kind, inner } if kind == &ValueKind::Float => unsafe {
-                inner.v_float64 == other.inner.v_float64
-            },
-            TVMValue { kind, inner } if kind == &ValueKind::Handle => unsafe {
-                inner.v_handle == other.inner.v_handle
-            },
-            TVMValue { kind, inner } if kind == &ValueKind::Str => unsafe {
-                inner.v_str == other.inner.v_str
-            },
-            TVMValue { kind, inner } if kind == &ValueKind::Type => unsafe {
-                inner.v_type == other.inner.v_type
-            },
-            TVMValue { kind, inner } if kind == &ValueKind::Context => unsafe {
-                inner.v_ctx == other.inner.v_ctx
-            },
-            _ => panic!("Undefined TVMValue comparision"),
-        }
-    }
-}
-
-impl Eq for TVMValue {}
-
 impl Debug for TVMValue {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
         unsafe {
@@ -356,7 +325,7 @@ impl DerefMut for TVMValue {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone)]
 pub struct TVMArgValue<'a> {
     pub value: TVMValue,
     pub type_code: TypeCode,
@@ -389,8 +358,7 @@ impl<'a> TVMArgValue<'a> {
         unsafe { self.value.inner.v_float64 }
     }
 
-    // TODO: convert to TVMByteArray instead
-    pub fn to_bytearray(&self) -> Box<[u8]> {
+    pub fn to_bytearray(&self) -> TVMByteArray {
         assert_eq!(
             self.type_code,
             TypeCode::kBytes,
@@ -400,8 +368,7 @@ impl<'a> TVMArgValue<'a> {
         unsafe {
             let barr_ptr =
                 mem::transmute::<*mut c_void, *mut ts::TVMByteArray>(self.value.inner.v_handle);
-            let barr = CStr::from_ptr((*barr_ptr).data).to_bytes();
-            barr.to_vec().into_boxed_slice()
+            TVMByteArray::new(*barr_ptr)
         }
     }
 
@@ -511,10 +478,16 @@ mod tests {
         let v = CString::new(b"hello".to_vec()).unwrap();
         let v = v.into_bytes();
         let tvm = TVMArgValue::from(&v[..]);
-        assert_eq!(tvm.to_bytearray(), v.into_boxed_slice());
+        assert_eq!(
+            tvm.to_bytearray().data(),
+            v.iter().map(|e| *e as i8).collect::<Vec<i8>>()
+        );
         let w = vec![1u8, 2, 3, 4, 5];
         let tvm = TVMArgValue::from(&w[..]);
-        assert_eq!(tvm.to_bytearray(), w.into_boxed_slice());
+        assert_eq!(
+            tvm.to_bytearray().data(),
+            w.iter().map(|e| *e as i8).collect::<Vec<i8>>()
+        );
     }
 
     #[test]
