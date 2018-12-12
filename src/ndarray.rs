@@ -11,6 +11,7 @@ use ts;
 
 use Error;
 use Result;
+use TVMByteArray;
 use TVMContext;
 use TVMType;
 
@@ -28,10 +29,12 @@ impl NDArray {
         }
     }
 
+    #[inline]
     pub fn as_handle(&self) -> ts::TVMArrayHandle {
         self.handle
     }
 
+    #[inline]
     pub fn is_view(&self) -> bool {
         self.is_view
     }
@@ -45,7 +48,7 @@ impl NDArray {
         Some(slc.to_vec())
     }
 
-    // TODO: inline
+    #[inline]
     pub fn size(&self) -> Option<usize> {
         self.shape().map(|v| v.into_iter().product())
     }
@@ -55,6 +58,7 @@ impl NDArray {
         dlctx.into()
     }
 
+    #[inline]
     pub fn context(&self) -> TVMContext {
         self.ctx()
     }
@@ -81,6 +85,7 @@ impl NDArray {
         }
     }
 
+    #[inline]
     pub fn is_contiguous(&self) -> bool {
         self.strides().is_none()
     }
@@ -106,12 +111,12 @@ impl NDArray {
         Ok(v)
     }
 
-    pub fn to_bytearray(&self) -> Result<Box<[u8]>> {
-        self.to_vec::<u8>().map(|v| v.into_boxed_slice())
+    pub fn to_bytearray(&self) -> Result<TVMByteArray> {
+        let v = self.to_vec::<u8>()?;
+        Ok(TVMByteArray::from(&v))
     }
 
-    // TODO: restrict to i32, u32, f32 as TVMType repr
-    pub fn copy_from_buffer<T>(&mut self, data: &mut [T]) {
+    pub fn copy_from_buffer<T: Num32>(&mut self, data: &mut [T]) {
         check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
             data.as_ptr() as *mut _,
@@ -140,7 +145,7 @@ impl NDArray {
         Ok(copy)
     }
 
-    pub fn from_rust_ndarray<T: Num + Copy>(
+    pub fn from_rust_ndarray<T: Num32 + Copy>(
         rnd: &ArrayD<T>,
         ctx: TVMContext,
         dtype: TVMType,
@@ -214,6 +219,20 @@ impl Drop for NDArray {
         }
     }
 }
+
+pub trait Num32: Num {
+    const BITS: u8 = 32;
+}
+
+macro_rules! impl_num32 {
+    ($($type:ty),+) => {
+        $(
+            impl Num32 for $type {}
+        )+
+    };
+}
+
+impl_num32!(i32, u32, f32);
 
 #[cfg(test)]
 mod tests {
