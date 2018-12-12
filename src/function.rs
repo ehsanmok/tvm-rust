@@ -258,7 +258,6 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
 
 impl<'a> From<Function> for Builder<'a> {
     fn from(func: Function) -> Self {
-        // println!("builder from: {:?}", func.as_handle());
         Builder::new(Some(func), None, None)
     }
 }

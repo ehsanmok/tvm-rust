@@ -79,7 +79,6 @@ impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
 impl_prim_val!(f64, ValueKind::Float, v_float64, f64);
 impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
 
-// TODO: cleanup
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
         let len = arg.len();
@@ -91,7 +90,6 @@ impl<'a> From<&'a [u8]> for TVMValue {
         let inner = ts::TVMValue {
             v_handle: &arr as *const _ as *mut c_void,
         };
-        mem::forget(arr);
         mem::forget(arg);
         Self::new(ValueKind::Handle, inner)
     }
