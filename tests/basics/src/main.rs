@@ -1,5 +1,5 @@
 extern crate ndarray as rust_ndarray;
-extern crate tvm_rust as tvm;
+extern crate tvm_frontend as tvm;
 
 use std::path::Path;
 

@@ -3,12 +3,11 @@ name = "basics"
 version = "0.0.0"
 authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
 license = "Apache-2.0"
-
 build = "build.rs"
 
 [dependencies]
 ndarray = "0.12.1"
-tvm-rust = { path = "../../" }
+tvm-frontend = { path = "../../" }
 
 [features]
 cpu = []

@@ -125,7 +125,7 @@ impl_prim_type!(NDArray, kArrayHandle);
 impl_prim_type!([u8], kBytes);
 impl_prim_type!(TVMByteArray, kBytes);
 
-#[derive(Debug, Copy, Clone, Hash, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TVMType {
     pub inner: ts::TVMType, // (type) code: u8, bits: u8, lanes: u16
 }

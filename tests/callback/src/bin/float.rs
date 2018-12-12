@@ -2,7 +2,7 @@
 #![allow(unused_imports)]
 
 #[macro_use]
-extern crate tvm_rust as tvm;
+extern crate tvm_frontend as tvm;
 
 use tvm::*;
 

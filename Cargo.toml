@@ -1,21 +1,17 @@
 [package]
-name = "tvm-rust"
-version = "0.0.2"
-authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
+name = "tvm-frontend"
+version = "0.1.0"
 license = "Apache-2.0"
+description = "Rust frontend support for TVM"
+repository = "https://github.com/dmlc/tvm"
+homepage = "https://github.com/dmlc/tvm"
 readme = "README.md"
-
-homepage = "https://github.com/ehsanmok/tvm-rust"
-repository = "https://github.com/ehsanmok/tvm-rust"
-documentation = "https://docs.rs/tvm-rust/"
-
-description = "Rust support for TVM runtime"
-
 keywords = ["rust", "tvm", "nnvm"]
 categories = ["api-bindings", "science"]
+authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
 
 [lib]
-name = "tvm_rust"
+name = "tvm_frontend"
 crate-type = ["dylib"]
 
 [dependencies]

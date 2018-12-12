@@ -3,11 +3,7 @@ name = "tvm-sys"
 version = "0.1.0"
 authors = ["Ehsan M.Kermani <ehsanmo1367@gmail.com>"]
 license = "Apache-2.0"
-description = "TVM runtime bindings"
+description = "Raw C API"
 
 [build-dependencies]
 bindgen = "0.37.4"
-
-[features]
-# for dev usage only
-nightly = []

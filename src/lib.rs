@@ -5,8 +5,7 @@
 // <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
 // option. This file may not be copied, modified, or distributed
 // except according to those terms.
-#![crate_name = "tvm_rust"]
-#![doc(html_root_url = "https://docs.rs/ts-rust/0.0.2/")]
+#![crate_name = "tvm_frontend"]
 #![allow(
     non_camel_case_types,
     unused_assignments,
@@ -21,7 +20,7 @@
 //! [TVM](https://github.com/dmlc/ts) runtime.
 //!
 
-pub extern crate tvm_sys as ts;
+extern crate tvm_sys as ts;
 #[macro_use]
 extern crate lazy_static;
 extern crate custom_error;

@@ -1,7 +1,7 @@
 extern crate csv;
 extern crate image;
 extern crate ndarray;
-extern crate tvm_rust as tvm;
+extern crate tvm_frontend as tvm;
 
 use std::collections::HashMap;
 use std::error::Error;

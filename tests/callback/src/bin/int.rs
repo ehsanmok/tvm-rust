@@ -1,7 +1,7 @@
 #![feature(extern_crate_item_prelude)]
 #![allow(unused_imports)]
 
-extern crate tvm_rust as tvm;
+extern crate tvm_frontend as tvm;
 
 use tvm::*;
 

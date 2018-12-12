@@ -3,7 +3,7 @@
 
 use std::panic;
 
-extern crate tvm_rust as tvm;
+extern crate tvm_frontend as tvm;
 
 use tvm::*;
 
