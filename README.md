@@ -1,8 +1,8 @@
 # TVM runtime frontend support
 
-This crate provides idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend.
+This crate provides idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend. Currently this requires *Nightly Rust*.
 
-Please follow the TVM [installation](https://docs.tvm.ai/install/index.html), with `export TVM_HOME=/path/to/tvm` and add `libtvm_runtime` to your `LD_LIBRARY_PATH`.
+Please follow the TVM [installation](https://docs.tvm.ai/install/index.html), `export TVM_HOME=/path/to/tvm` and add `libtvm_runtime` to your `LD_LIBRARY_PATH`.
 
 *Note:* To run the end-to-end examples and tests, `tvm`, `nnvm` and `topi` need to be added to your `PYTHONPATH`.
 
