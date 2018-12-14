@@ -1,11 +1,27 @@
 extern crate bindgen;
 
 use std::env;
+use std::error::Error;
 use std::path::PathBuf;
+use std::process;
+use std::result::Result;
+
+const TVM_RUNTIME: &'static str = "tvm_runtime";
 
 fn main() {
-    println!("cargo:rustc-link-lib=dylib=tvm_runtime");
-    println!("cargo:rustc-link-search=native=libtvm_runtime");
+    match run() {
+        Ok(_) => (),
+        Err(err) => {
+            eprintln!("error occured during the build: {:?}", err);
+            process::exit(1)
+        }
+    }
+}
+
+fn run() -> Result<(), Box<dyn Error>> {
+    println!("cargo:rustc-link-lib=dylib={}", TVM_RUNTIME);
+    let lib = format!("lib{}", TVM_RUNTIME);
+    println!("cargo:rustc-link-search=native={}", lib);
     let tvm_home = env::var("TVM_HOME").expect("TVM_HOME not found!");
     let bindings = bindgen::Builder::default()
         .header(format!("{}/include/tvm/runtime/c_runtime_api.h", tvm_home))
@@ -24,4 +40,6 @@ fn main() {
     bindings
         .write_to_file(PathBuf::from("src/bindgen.rs"))
         .expect("Can not write the bindings!");
+
+    Ok(())
 }
