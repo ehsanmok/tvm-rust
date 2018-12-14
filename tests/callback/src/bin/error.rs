@@ -22,6 +22,7 @@ fn main() {
     assert!(registered.func.is_some());
     registered.args(&[10, 20]);
 
+    println!("expected error message is:");
     panic::set_hook(Box::new(|panic_info| {
         if let Some(msg) = panic_info.message() {
             println!("{:?}", msg);

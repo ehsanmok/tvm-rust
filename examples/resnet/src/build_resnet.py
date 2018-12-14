@@ -18,16 +18,20 @@ image_shape = (3, 224, 224)
 data_shape = (batch_size,) + image_shape
 
 def build(target_dir):
+	""" Compiles resnet18 with TVM"""
 
+	# download the pretrained resnet18 trained on imagenet1k dataset for
+	# image classification task
 	block = get_model('resnet18_v1', pretrained=True)
 	
 	sym, params = nnvm.frontend.from_mxnet(block)
+	# add the softmax layer for prediction
 	net = nnvm.sym.softmax(sym)
-
+	# compile the model
 	with nnvm.compiler.build_config(opt_level=opt_level):
 		graph, lib, params = nnvm.compiler.build(
 			net, target, shape={"data": data_shape}, params=params)
-
+	# same the model artifacts
 	lib.save(os.path.join(target_dir, "deploy_lib.o"))
 	cc.create_shared(os.path.join(target_dir, "deploy_lib.so"),
     				[os.path.join(target_dir, "deploy_lib.o")])
@@ -36,7 +40,7 @@ def build(target_dir):
 	    fo.write(graph.json())
 	with open(os.path.join(target_dir,"deploy_param.params"), "wb") as fo:
 	    fo.write(nnvm.compiler.save_param_dict(params))
-
+	# download an image and imagenet1k class labels for test
 	img_name = 'cat.png'
 	synset_url = ''.join(['https://gist.githubusercontent.com/zhreshold/',
                       '4d0b62f3d01426887599d4f7ede23ee5/raw/',
@@ -54,6 +58,8 @@ def build(target_dir):
 		w.writerows(synset.items())
 
 def test_build(target_dir):
+	""" Sanity check with random input"""
+
 	graph = open(os.path.join(target_dir, "deploy_graph.json")).read()
 	lib = tvm.module.load(os.path.join(target_dir, "deploy_lib.so"))
 	params = bytearray(open(os.path.join(target_dir,"deploy_param.params"), "rb").read())

@@ -24,7 +24,7 @@ fn main() {
         function::Builder::from(&mut fadd)
             .arg(&arr)
             .arg(&arr)
-            .accept_ret(&mut ret)
+            .set_output(&mut ret)
             .invoke()
             .unwrap();
 
@@ -49,7 +49,7 @@ fn main() {
         function::Builder::from(&mut fadd)
             .arg(&arr)
             .arg(&arr)
-            .accept_ret(&mut ret)
+            .set_output(&mut ret)
             .invoke()
             .unwrap();
 

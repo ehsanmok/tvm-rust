@@ -1,10 +1,15 @@
-// Copyright 2018 Ehsan M. Kermani.
-//
-// Licensed under the Apache License, Version 2.0 <LICENSE-APACHE or
-// http://www.apache.org/licenses/LICENSE-2.0> or the MIT license
-// <LICENSE-MIT or http://opensource.org/licenses/MIT>, at your
-// option. This file may not be copied, modified, or distributed
-// except according to those terms.
+//! [TVM](https://github.com/dmlc/tvm) is a compiler stack for deep learning systems.
+//!
+//! This crate provides idiomatic Rust API for TVM runtime frontend.
+//!
+//! One particular usage is that given an optimized deep learning model,
+//! compiled with TVM, one can load the model artifacts which includes a shared library
+//! `lib.so`, `graph.json` and byte-array `param.params`
+//! in Rust to create a runtime, run the model for some inputs and get the
+//! desired predictions all in Rust.
+//!
+//! Checkout the `examples` repository for more details.
+
 #![crate_name = "tvm_frontend"]
 #![allow(
     non_camel_case_types,
@@ -13,12 +18,6 @@
     unused_unsafe
 )]
 #![feature(try_from, fn_traits, unboxed_closures)]
-
-//! [WIP]
-//!
-//! The `tvm_rust` crate aims at supporting Rust as one of the frontend API in
-//! [TVM](https://github.com/dmlc/ts) runtime.
-//!
 
 extern crate tvm_sys as ts;
 #[macro_use]
@@ -30,7 +29,7 @@ extern crate num_traits;
 use std::ffi::{CStr, CString};
 use std::str;
 
-/// Macro to check the return call to TVM runtime shared library
+// Macro to check the return call to TVM runtime shared library
 macro_rules! check_call {
     ($e:expr) => {{
         if unsafe { $e } != 0 {
@@ -39,7 +38,8 @@ macro_rules! check_call {
     }};
 }
 
-pub(crate) fn get_last_error() -> &'static str {
+/// Gets the last error message
+pub fn get_last_error() -> &'static str {
     unsafe {
         match CStr::from_ptr(ts::TVMGetLastError()).to_str() {
             Ok(s) => s,
@@ -66,14 +66,18 @@ pub mod ty;
 pub mod value;
 
 pub use bytearray::TVMByteArray;
-pub use context::*;
-pub use errors::{Error, Result};
+pub use context::TVMContext;
+pub use context::TVMDeviceType;
+pub use errors::Error;
+pub use errors::Result;
 pub use function::Function;
 pub use module::Module;
 pub use ndarray::{empty, NDArray};
-pub use ty::*;
-pub use value::*;
+pub use ty::TVMType;
+pub use value::TVMArgValue;
+pub use value::TVMRetValue;
 
+/// Outputs the current TVM version
 pub fn version() -> &'static str {
     match str::from_utf8(ts::TVM_VERSION) {
         Ok(s) => s,

@@ -1,3 +1,28 @@
+//! This module implements [`NDArray`] type for working with TVM tensors or
+//! covertsion from Rust's ndarray to TVM `NDArray`.
+//!
+//! One can create an empty NDArray given the shape, context and dtype using [`empty`].
+//! To create an NDArray from a mutable buffer in cpu use [`copy_from_buffer`].
+//! To copy an NDArray to different context use [`copy_to_ctx`].
+//!
+//! Given a [`Rust's dynamic ndarray`], one can convert it to TVM NDArray as follows:
+//!
+//! # Example
+//!
+//! ```
+//! let a = Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
+//!     .unwrap()
+//!     .into_dyn(); // Rust's ndarray
+//! let nd = NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+//! assert_eq!(nd.shape(), Some(vec![2, 2]));
+//! let rnd: ArrayD<f32> = ArrayD::try_from(&nd).unwrap();
+//! assert!(rnd.all_close(&a, 1e-8f32));
+//! ```
+//!
+//! [`Rust's dynamic ndarray`]:https://docs.rs/ndarray/0.12.1/ndarray/
+//! [`copy_from_buffer`]:struct.NDArray.html#method.copy_from_buffer
+//! [`copy_to_ctx`]:struct.NDArray.html#method.copy_to_ctx
+
 use std::convert::TryFrom;
 use std::mem;
 use std::os::raw::c_int;
@@ -15,6 +40,9 @@ use TVMByteArray;
 use TVMContext;
 use TVMType;
 
+/// See the [`module-level documentation`](../ndarray/index.html) for more details.
+///
+/// Wrapper around TVM array handle.
 #[derive(Debug)]
 pub struct NDArray {
     pub(crate) handle: ts::TVMArrayHandle,
@@ -29,6 +57,7 @@ impl NDArray {
         }
     }
 
+    /// Returns the underlying array handle.
     #[inline]
     pub fn as_handle(&self) -> ts::TVMArrayHandle {
         self.handle
@@ -39,6 +68,7 @@ impl NDArray {
         self.is_view
     }
 
+    /// Returns the shape of the NDArray.
     pub fn shape(&self) -> Option<Vec<usize>> {
         let arr = unsafe { *(self.handle) };
         if arr.shape.is_null() || arr.data.is_null() {
@@ -48,11 +78,13 @@ impl NDArray {
         Some(slc.to_vec())
     }
 
+    /// Returns the total number of entries of the NDArray.
     #[inline]
     pub fn size(&self) -> Option<usize> {
         self.shape().map(|v| v.into_iter().product())
     }
 
+    /// Returns the context which the NDArray was defined.
     pub fn ctx(&self) -> TVMContext {
         let dlctx = unsafe { (*self.handle).ctx };
         dlctx.into()
@@ -63,11 +95,13 @@ impl NDArray {
         self.ctx()
     }
 
+    /// Returns the type of the entries of the NDArray.
     pub fn dtype(&self) -> TVMType {
         let dldtype = unsafe { (*self.handle).dtype };
         dldtype.into()
     }
 
+    /// Returns the number of dimensions of the NDArray.
     pub fn ndim(&self) -> usize {
         unsafe { (*self.handle).ndim as usize }
     }
@@ -94,6 +128,19 @@ impl NDArray {
         unsafe { (*self.handle).byte_offset as isize }
     }
 
+    /// Flattens the NDArray to a Vec of the same type in cpu.
+    ///
+    /// ## Example
+    ///
+    /// ```
+    /// let mut shape = vec![4];
+    /// let mut data = vec![1i32, 2, 3, 4];
+    /// let ctx = TVMContext::cpu(0);
+    /// let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
+    /// ndarray.copy_from_buffer(&mut data);
+    /// assert_eq!(ndarray.shape(), Some(shape));
+    /// assert_eq!(ndarray.to_vec::<i32>().unwrap(), data);
+    /// ```
     pub fn to_vec<T>(&self) -> Result<Vec<T>> {
         if self.shape().is_none() {
             return Err(Error::EmptyArray);
@@ -111,11 +158,22 @@ impl NDArray {
         Ok(v)
     }
 
+    /// Converts the NDArray to [`TVMByteArray`].
     pub fn to_bytearray(&self) -> Result<TVMByteArray> {
         let v = self.to_vec::<u8>()?;
         Ok(TVMByteArray::from(&v))
     }
 
+    /// Creates an NDArray from a mutable buffer of types i32, u32 or f32 in cpu.
+    /// ## Example
+    ///
+    /// ```
+    /// let mut shape = vec![2];
+    /// let mut data = vec![1f32, 2];
+    /// let ctx = TVMContext::gpu(0);
+    /// let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
+    /// ndarray.copy_from_buffer(&mut data);
+    /// ```
     pub fn copy_from_buffer<T: Num32>(&mut self, data: &mut [T]) {
         check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
@@ -124,6 +182,7 @@ impl NDArray {
         ));
     }
 
+    /// Copies the NDArray to another target NDArray.
     pub fn copy_to_ndarray(&self, target: NDArray) -> Result<NDArray> {
         if self.dtype() != target.dtype() {
             return Err(Error::TypeMismatch {
@@ -139,12 +198,14 @@ impl NDArray {
         Ok(target)
     }
 
+    /// Copies the NDArray to a target context.
     pub fn copy_to_ctx(&self, target: &TVMContext) -> Result<NDArray> {
         let tmp = empty(&mut self.shape().unwrap(), target.clone(), self.dtype());
         let copy = self.copy_to_ndarray(tmp)?;
         Ok(copy)
     }
 
+    /// Converts a Rust's ndarray to TVM NDArray.
     pub fn from_rust_ndarray<T: Num32 + Copy>(
         rnd: &ArrayD<T>,
         ctx: TVMContext,
@@ -161,6 +222,7 @@ impl NDArray {
     }
 }
 
+/// Creates an empty NDArray given shape, context and dtype.
 pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
     let mut handle = ptr::null_mut() as ts::TVMArrayHandle;
     check_call!(ts::TVMArrayAlloc(
@@ -220,6 +282,7 @@ impl Drop for NDArray {
     }
 }
 
+/// A trait for the supported 32bits numerical types in frontend.
 pub trait Num32: Num {
     const BITS: u8 = 32;
 }

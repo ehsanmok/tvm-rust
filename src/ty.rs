@@ -1,3 +1,15 @@
+//! This module implements the required conversion from Rust types to TVM types.
+//!
+//! In TVM frontend only conversions from 32bits numeric types (i32, u32, f32)
+//! and 64bits pointers are supported.
+//!
+//! # Example
+//!
+//! ```
+//! let dtype = TVMType::from("float");
+//! println!("dtype is: {}", dtype);
+//! ```
+
 use std::ffi::{CStr, CString};
 use std::fmt::{self, Display, Formatter};
 use std::ops::{Deref, DerefMut};
@@ -11,6 +23,7 @@ use TVMByteArray;
 use TVMContext;
 use TVMDeviceType;
 
+/// TVM Type codes
 #[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum TypeCode {
@@ -125,6 +138,9 @@ impl_prim_type!(NDArray, kArrayHandle);
 impl_prim_type!([u8], kBytes);
 impl_prim_type!(TVMByteArray, kBytes);
 
+/// See the [module-level documentation](../ty/index.html) for more details.
+///
+/// Wrapper around underlying TVMType
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TVMType {
     pub inner: ts::TVMType, // (type) code: u8, bits: u8, lanes: u16

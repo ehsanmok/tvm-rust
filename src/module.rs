@@ -1,3 +1,5 @@
+//! Provides [`Module`] type and methods for working with runtime TVM modules.
+
 use std::ffi::CString;
 use std::mem;
 use std::os::raw::{c_char, c_int};
@@ -13,6 +15,7 @@ use Result;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 
+/// Wrapper around TVM module handle.
 #[derive(Debug, Clone)]
 pub struct Module {
     pub(crate) handle: ts::TVMModuleHandle,
@@ -33,6 +36,7 @@ impl Module {
         }
     }
 
+    /// Sets the entry function of a module.
     pub fn entry_func(mut self) -> Self {
         if self.entry.is_none() {
             self.entry = self.get_function(ENTRY_FUNC, false).ok();
@@ -40,6 +44,7 @@ impl Module {
         self
     }
 
+    /// Gets a function by name from a registered module.
     pub fn get_function(&self, name: &str, query_import: bool) -> Result<Function> {
         let name = CString::new(name).expect("function name cannot be passed as C String");
         let query_import = if query_import == true { 1 } else { 0 };
@@ -60,10 +65,12 @@ impl Module {
         }
     }
 
+    /// Imports a dependent module such as `.ptx` for gpu.
     pub fn import_module(&self, dependent_module: Module) {
         check_call!(ts::TVMModImport(self.handle, dependent_module.handle))
     }
 
+    /// Loads a module shared library from path.
     pub fn load(path: &Path) -> Result<Module> {
         let path = path.to_owned();
         let path_str = path.to_str().unwrap().to_owned();
@@ -76,12 +83,14 @@ impl Module {
         Ok(ret.to_module())
     }
 
+    /// Checks if a target device is enabled for a module.
     pub fn enabled(&self, target: String) -> bool {
         let func = internal_api::get_api("module._Enabled".to_owned());
         let ret = function::Builder::from(func).arg(&target).invoke().unwrap();
         ret.to_int() != 0
     }
 
+    /// Returns the underlying module handle.
     pub fn as_handle(&self) -> ts::TVMModuleHandle {
         self.handle
     }

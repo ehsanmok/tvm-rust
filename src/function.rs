@@ -1,3 +1,11 @@
+//! This module provides idiomatic Rust API for creating and working with TVM functions.
+//!
+//! For calling an already registered TVM function use [`function::Builder`] and to register
+//! a TVM packed function from Rust either use [`function::register`] or the
+//! macro [`register_global_func`].
+//!
+//! See the `tests` and `examples` repository for usage examples.
+
 use std::ffi::{CStr, CString};
 use std::mem;
 use std::os::raw::{c_char, c_int, c_void};
@@ -8,14 +16,14 @@ use std::sync::Mutex;
 
 use ts;
 
+use ty::TypeCode;
+use value::TVMValue;
+use value::ValueKind;
 use Error;
 use Module;
 use Result;
 use TVMArgValue;
 use TVMRetValue;
-use TVMValue;
-use TypeCode;
-use ValueKind;
 
 lazy_static! {
     static ref GLOBAL_FUNCTION_NAMES: Mutex<Vec<&'static str>> = list_global_func_names();
@@ -39,6 +47,7 @@ fn list_global_func_names() -> Mutex<Vec<&'static str>> {
     Mutex::new(list)
 }
 
+/// Returns a registered TVM function by name.
 pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
     let name = CString::new(name).unwrap();
     let mut handle = ptr::null_mut() as ts::TVMFunctionHandle;
@@ -58,6 +67,7 @@ pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Opti
     }
 }
 
+/// Wrapper around TVM function handle.
 #[derive(Debug, Hash)]
 pub struct Function {
     handle: ts::TVMFunctionHandle,
@@ -66,7 +76,7 @@ pub struct Function {
 }
 
 impl Function {
-    pub fn new(handle: ts::TVMFunctionHandle, is_global: bool, is_released: bool) -> Self {
+    pub(crate) fn new(handle: ts::TVMFunctionHandle, is_global: bool, is_released: bool) -> Self {
         Function {
             handle: handle,
             is_global: is_global,
@@ -74,6 +84,7 @@ impl Function {
         }
     }
 
+    /// For a given function, it returns a function by name.
     pub fn get_function(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
         let name = CString::new(name).unwrap();
         GLOBAL_FUNCTION_NAMES
@@ -84,6 +95,7 @@ impl Function {
             .map(|nm| get_global_func(nm, is_global, allow_missing).unwrap())
     }
 
+    /// Returns the underlying TVM function handle.
     pub fn as_handle(&self) -> ts::TVMFunctionHandle {
         self.handle
     }
@@ -120,6 +132,8 @@ impl Drop for Function {
     }
 }
 
+/// Function builder in order to create and call functions.
+/// *Note:* TVM only accepts at most one return value.
 #[derive(Debug, Clone, Default)]
 pub struct Builder<'a> {
     pub func: Option<Function>,
@@ -145,6 +159,7 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Pushes a [`TVMArgValue`] into the function.
     pub fn arg<'b, T: ?Sized>(&mut self, arg: &'b T) -> &mut Self
     where
         TVMValue: From<&'b T>,
@@ -166,6 +181,7 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Pushes multiple [`TVMArgValue`]s into the function.
     pub fn args<'b, T: 'b + ?Sized, I>(&mut self, args: I) -> &mut Self
     where
         I: IntoIterator<Item = &'b T>,
@@ -178,7 +194,9 @@ impl<'a> Builder<'a> {
         self
     }
 
-    pub fn accept_ret<'b, T: 'b + ?Sized>(&mut self, arg: &'b mut T) -> &mut Self
+    /// Sets an output for a function that requirs a mutable output to be provided.
+    /// See the `basics` in `tests` for an example.
+    pub fn set_output<'b, T: 'b + ?Sized>(&mut self, arg: &'b mut T) -> &mut Self
     where
         TVMValue: From<&'b T>,
         TypeCode: From<&'b T>,
@@ -197,6 +215,7 @@ impl<'a> Builder<'a> {
         self
     }
 
+    /// Calls the function that created from builder.
     pub fn invoke(&mut self) -> Result<TVMRetValue<'a>> {
         self.clone()(())
     }
@@ -256,12 +275,15 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
     }
 }
 
+/// Converts a [`Function`] to builder. Currently, this is the best way to work with
+/// TVM functions.
 impl<'a> From<Function> for Builder<'a> {
     fn from(func: Function) -> Self {
         Builder::new(Some(func), None, None)
     }
 }
 
+/// Converts a mutable reference of a [`Module`] to builder.
 impl<'a: 'b, 'b> From<&'b mut Module> for Builder<'a> {
     fn from(module: &mut Module) -> Self {
         Builder::new(module.entry.take(), None, None)
@@ -336,6 +358,32 @@ fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>) ->
     Function::new(fhandle, false, false)
 }
 
+/// Registers a Rust function with signature
+/// `fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>`
+/// as a **global TVM packed function** from frontend to TVM backend.
+///
+/// Use [`register_global_func`] if overriding an existing global TVM function
+/// is not required.
+///
+/// ## Example
+///
+/// ```
+/// fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue<'static>> {
+///     let mut ret = 0;
+///     for arg in args.iter() {
+///         ret += arg.to_int();
+///     }
+///     let ret_val = TVMRetValue::from(&ret);
+///     Ok(ret_val)
+/// }
+///
+/// tvm::function::register(sum, "mysum".to_owned(), false).unwrap();
+/// let mut registered = function::Builder::default();
+/// registered.get_function("mysum", true, false);
+/// assert!(registered.func.is_some());
+/// registered.args(&[10, 20, 30]);
+/// assert_eq!(registered.invoke().unwrap().to_int(), 60);
+/// ```
 pub fn register(
     f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>,
     name: String,
@@ -353,6 +401,30 @@ pub fn register(
     Ok(())
 }
 
+/// Convenient macro for registering functions from frontend to backend as global
+/// TVM packed functions without overriding. If overriding an existing function is needed
+/// use the [`function::register`] function instead.
+///
+/// ## Example
+///
+/// ```
+/// register_global_func! {
+///     fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
+///         let mut ret = 0f64;
+///         for arg in args.iter() {
+///             ret += arg.to_float();
+///         }
+///         let ret_val = TVMRetValue::from(&ret);
+///         Ok(ret_val)
+///     }
+/// }
+///
+/// let mut registered = function::Builder::default();
+/// registered.get_function("sum", true, false);
+/// assert!(registered.func.is_some());
+/// registered.args(&[10f64, 20f64, 30f64]);
+/// assert_eq!(registered.invoke().unwrap().to_float(), 60f64);
+/// ```
 #[macro_export]
 macro_rules! register_global_func {
     {

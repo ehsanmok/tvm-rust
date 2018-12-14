@@ -1,8 +1,24 @@
+//! Provides [`TVMByteArray`] which is used for passing the model parameters
+//! (stored as byte-array) to a runtime module.
+//!
+//! This function can be obtained from a graph runtime module loading the model.
+//! For more detail, please see the example `resnet` in `examples` repository.
+
 use std::ffi::CString;
 use std::mem;
 
 use ts;
 
+/// A struct holding the TVM byte-array.
+///
+/// ## Example
+///
+/// ```
+/// let v = b"hello".to_vec();
+/// let barr = TVMByteArray::from(&v);
+/// assert_eq!(barr.len(), v.len());
+/// assert_eq!(barr.data(), vec![104i8, 101, 108, 108, 111]);
+/// ```
 #[derive(Debug, Clone)]
 pub struct TVMByteArray {
     pub(crate) inner: ts::TVMByteArray,
@@ -13,10 +29,12 @@ impl TVMByteArray {
         TVMByteArray { inner: barr }
     }
 
+    /// Gets the length of the underlying byte-array
     pub fn len(&self) -> usize {
         self.inner.size
     }
 
+    /// Gets the underlying byte-array as `Vec<i8>`
     pub fn data(&self) -> Vec<i8> {
         unsafe {
             let sz = self.len();

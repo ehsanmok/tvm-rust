@@ -1,3 +1,21 @@
+//! Provides [`TVMContext`] and related device specific informations.
+//!
+//! Create a new context by device type (cpu is 1) and device id.
+//!
+//! # Example
+//!
+//! ```
+//! let ctx = TVMContext::new(1, 0);
+//! let cpu0 = TVMContext::cpu(0);
+//! assert_eq!(ctx, cpu0);
+//! ```
+//! Or from supported device name.
+//!
+//! ```
+//! let cpu0 = TVMContext::from("cpu");
+//! println!("{}", cpu0);
+//! ```
+
 use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_void;
 use std::ptr;
@@ -8,10 +26,21 @@ use function;
 use internal_api;
 use Result;
 
+/// Device type which can be from a supported device name. See the supported devices
+/// in [TVM](https://github.com/dmlc/tvm) project.
+///
+/// ## Example
+///
+/// ```
+/// let cpu = TVMDeviceType::from("cpu");
+/// println!("device is: {}", cpu);
+///```
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub struct TVMDeviceType(pub usize);
 
 impl Default for TVMDeviceType {
+    /// default device is cpu.
     fn default() -> Self {
         TVMDeviceType(1)
     }
@@ -84,16 +113,32 @@ impl<'a> From<&'a str> for TVMDeviceType {
     }
 }
 
-/// TVM context. Default is cpu.
+/// Represents the underlying device context. Default is cpu.
+///
+/// ## Examples
+///
+/// ```
+/// let ctx = TVMContext::from("gpu");
+/// assert!(ctx.exist());
+///
+/// ```
+/// It is possible to query the context and get information such as
+///
+/// ```
+/// println!("maximun threads per block: {}", ctx.max_threads_per_block());
+/// println!("compute version: {}", ctx.compute_version());
+/// ```
+
 #[derive(Debug, Default, Clone, Hash, PartialEq, Eq)]
 pub struct TVMContext {
-    /// Supported devices
+    /// Supported device types
     pub device_type: TVMDeviceType,
     /// Device id
     pub device_id: usize,
 }
 
 impl TVMContext {
+    /// Creates context from device type and id.
     pub fn new(device_type: TVMDeviceType, device_id: usize) -> Self {
         TVMContext {
             device_type: device_type,
@@ -101,6 +146,7 @@ impl TVMContext {
         }
     }
 
+    /// Gets the currect context.
     pub fn current_context(&self) -> &Self {
         self
     }
@@ -136,6 +182,7 @@ impl<'a> From<&'a str> for TVMContext {
 }
 
 impl TVMContext {
+    /// Checks whether the context exists or not.
     pub fn exist(&self) -> bool {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.0 as usize;
@@ -148,6 +195,7 @@ impl TVMContext {
         ret.to_int() != 0
     }
 
+    /// Synchronize the context stream.
     pub fn sync(&self) -> Result<()> {
         check_call!(ts::TVMSynchronize(
             self.device_type.0 as i32,

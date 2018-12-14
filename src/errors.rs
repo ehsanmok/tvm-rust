@@ -1,3 +1,5 @@
+//! This module implements the TVM custom [`Error`] and [`Result`] types.
+
 use custom_error::custom_error;
 
 custom_error! {pub Error

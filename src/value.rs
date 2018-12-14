@@ -1,3 +1,14 @@
+//! This module implements [`TVMArgValue`] and [`TVMRetValue`] types and their conversions
+//! to other support TVMValue.
+//!
+//! # Example
+//!
+//! ```
+//! let a = 42i8;
+//! let b = TVMArgValue::from(&a);
+//! assert_eq!(b.to_int() as i8, a);
+//! ```
+
 use std::ffi::{CStr, CString};
 use std::fmt::{self, Debug, Formatter};
 use std::marker::PhantomData;
@@ -7,6 +18,7 @@ use std::os::raw::{c_char, c_void};
 
 use ts;
 
+use ty::TypeCode;
 use Function;
 use Module;
 use NDArray;
@@ -14,7 +26,6 @@ use TVMByteArray;
 use TVMContext;
 use TVMDeviceType;
 use TVMType;
-use TypeCode;
 
 #[derive(Debug, Clone, PartialOrd, Ord, PartialEq, Eq)]
 pub(crate) enum ValueKind {
@@ -28,6 +39,7 @@ pub(crate) enum ValueKind {
     Return,
 }
 
+/// Wrapper around underlying TVMValue.
 #[derive(Clone)]
 pub struct TVMValue {
     pub(crate) kind: ValueKind,
@@ -323,6 +335,18 @@ impl DerefMut for TVMValue {
     }
 }
 
+/// This type is needed for passing supported values as arguments to
+/// a [`function::Builder`]. Checkout the methods and from conversions.
+///
+/// ## Example
+///
+/// ```
+/// let ctx = TVMContext::gpu(0);
+/// let arg = TVMArgValue::from(&ctx);
+/// assert_eq!(arg.to_ctx(), ctx);
+/// ```
+///
+/// [`function::Builder`]:../function/struct.Builder.html
 #[derive(Debug, Clone)]
 pub struct TVMArgValue<'a> {
     pub value: TVMValue,
@@ -433,6 +457,7 @@ impl<'a> TVMArgValue<'a> {
     }
 }
 
+/// Main way to create a TVMArgValue from suported Rust's values.
 impl<'b, 'a: 'b, T: 'b + ?Sized> From<&'b T> for TVMArgValue<'a>
 where
     TVMValue: From<&'b T>,
@@ -443,6 +468,7 @@ where
     }
 }
 
+/// TVMRetValue is an alias of TVMArgValue.
 pub type TVMRetValue<'a> = TVMArgValue<'a>;
 
 #[cfg(test)]

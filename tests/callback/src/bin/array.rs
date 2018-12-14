@@ -1,12 +1,12 @@
 #![feature(extern_crate_item_prelude, try_from)]
 #![allow(unused_imports)]
 
+extern crate ndarray as rust_ndarray;
 #[macro_use]
 extern crate tvm_frontend as tvm;
 
 use std::convert::TryFrom;
 
-extern crate ndarray as rust_ndarray;
 use rust_ndarray::ArrayD;
 
 use tvm::*;
