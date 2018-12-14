@@ -1,9 +1,10 @@
 # TVM runtime frontend support
-------------------------------
 
 This crate provides idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend.
 
-Please follow the TVM [installation](https://github.com/dmlc/tvm/blob/master/docs/how_to/install.md), and add `libtvm_runtime.so` to your `LD_LIBRARY_PATH`.
+Please follow the TVM [installation](https://docs.tvm.ai/install/index.html), with `export TVM_HOME=/path/to/tvm` and add `libtvm_runtime` to your `LD_LIBRARY_PATH`.
+
+*Note:* To run the end-to-end examples and tests, `tvm`, `nnvm` and `topi` need to be added to your `PYTHONPATH`.
 
 ## Use TVM to Generate Shared Library
 
@@ -39,62 +40,77 @@ if __name__ == "__main__":
 The following code snippet demonstrate how to load generated shared library (`add_cpu.so`).
 
 ```rust
-let mut shape = vec![2];
-let mut data = vec![3f32, 4.0];
+extern crate tvm_frontend as tvm;
 
-let mut arr = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
-arr.copy_from_buffer(data.as_mut_slice());
+use tvm::*;
 
-let mut ret = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+fn main() {
+    let mut shape = vec![2];
+    let mut data = vec![3f32, 4.0];
 
-let path = Path::new("add_cpu.so");
+    let mut arr = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+    arr.copy_from_buffer(data.as_mut_slice());
 
-let mut fadd = Module::load(&path).unwrap();
-assert!(fadd.enabled("cpu".to_owned()));
-fadd = fadd.entry_func();
+    let mut ret = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
 
-function::Builder::from(&mut fadd)
-    .arg(&arr)
-    .arg(&arr)
-    .set_output(&mut ret)
-    .invoke()
-    .unwrap();
+    let path = Path::new("add_cpu.so");
 
-assert_eq!(ret.to_vec::<f32>().unwrap(), vec![6f32, 8.0]);
+    let mut fadd = Module::load(&path).unwrap();
+    assert!(fadd.enabled("cpu".to_owned()));
+    fadd = fadd.entry_func();
+
+    function::Builder::from(&mut fadd)
+        .arg(&arr)
+        .arg(&arr)
+        .set_output(&mut ret)
+        .invoke()
+        .unwrap();
+
+    assert_eq!(ret.to_vec::<f32>().unwrap(), vec![6f32, 8.0]);
+}
 ```
+**Note:** it is required to instruct the `rustc` to link to the generated `add_cpu.so` in runtime, for example by
+`cargo:rustc-link-search=native=add_cpu`. 
+
+See the tests and examples custom `build.rs` for more details.
 
 ## Convert and Register a Rust Function as a TVM Packed Function
 
 One can you the `register_global_func!` macro to convert and register a Rust's 
-function of type `fn(&[TVMArgValue]) -> Result<TVMRetValue>` to global TVM packed function as follows
+function of type `fn(&[TVMArgValue]) -> Result<TVMRetValue>` to a global TVM packed function as follows
 
 ```rust
-register_global_func! {
-    fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
-        let mut ret = 0f32;
-        let mut shape = vec![2];
-        for arg in args.iter() {
-            let e = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
-            let arr = arg.to_ndarray().copy_to_ndarray(e).unwrap();
-            let rnd: ArrayD<f32> = ArrayD::try_from(&arr).unwrap();
-            ret += rnd.scalar_sum();
+#[macro_use]
+extern crate tvm_frontend as tvm;
+
+use tvm::*;
+
+fn main() {
+    register_global_func! {
+        fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
+            let mut ret = 0f32;
+            let mut shape = vec![2];
+            for arg in args.iter() {
+                let e = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+                let arr = arg.to_ndarray().copy_to_ndarray(e).unwrap();
+                let rnd: ArrayD<f32> = ArrayD::try_from(&arr).unwrap();
+                ret += rnd.scalar_sum();
+            }
+            let ret_val = TVMRetValue::from(&ret);
+            Ok(ret_val)
         }
-        let ret_val = TVMRetValue::from(&ret);
-        Ok(ret_val)
     }
-}
 
-let mut shape = vec![2];
-let mut data = vec![3f32, 4.0];
-let mut arr = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
-arr.copy_from_buffer(data.as_mut_slice());
+    let mut shape = vec![2];
+    let mut data = vec![3f32, 4.0];
+    let mut arr = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+    arr.copy_from_buffer(data.as_mut_slice());
 
-let mut registered = function::Builder::default();
-registered
-    .get_function("sum", true, false)
-    .arg(&arr)
-    .arg(&arr);
-assert_eq!(registered.invoke().unwrap().to_float(), 14f64);
+    let mut registered = function::Builder::default();
+    registered
+        .get_function("sum", true, false)
+        .arg(&arr)
+        .arg(&arr);
+    assert_eq!(registered.invoke().unwrap().to_float(), 14f64);
+    }
 ```
-
-For and end-to-end example of compiling a image classification model and run in in Rust, please see the `resnet` in examples repository.
