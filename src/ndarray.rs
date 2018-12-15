@@ -58,12 +58,10 @@ impl NDArray {
     }
 
     /// Returns the underlying array handle.
-    #[inline]
-    pub fn as_handle(&self) -> ts::TVMArrayHandle {
+    pub fn handle(&self) -> ts::TVMArrayHandle {
         self.handle
     }
 
-    #[inline]
     pub fn is_view(&self) -> bool {
         self.is_view
     }
@@ -79,26 +77,18 @@ impl NDArray {
     }
 
     /// Returns the total number of entries of the NDArray.
-    #[inline]
     pub fn size(&self) -> Option<usize> {
         self.shape().map(|v| v.into_iter().product())
     }
 
     /// Returns the context which the NDArray was defined.
     pub fn ctx(&self) -> TVMContext {
-        let dlctx = unsafe { (*self.handle).ctx };
-        dlctx.into()
-    }
-
-    #[inline]
-    pub fn context(&self) -> TVMContext {
-        self.ctx()
+        unsafe { (*self.handle).ctx.into() }
     }
 
     /// Returns the type of the entries of the NDArray.
     pub fn dtype(&self) -> TVMType {
-        let dldtype = unsafe { (*self.handle).dtype };
-        dldtype.into()
+        unsafe { (*self.handle).dtype.into() }
     }
 
     /// Returns the number of dimensions of the NDArray.
@@ -119,7 +109,6 @@ impl NDArray {
         }
     }
 
-    #[inline]
     pub fn is_contiguous(&self) -> bool {
         self.strides().is_none()
     }
@@ -174,6 +163,9 @@ impl NDArray {
     /// let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
     /// ndarray.copy_from_buffer(&mut data);
     /// ```
+    ///
+    /// *Note*: if something goes wrong during the copy, it will panic
+    /// from TVM side. See `TVMArrayCopyFromBytes` in `c_runtime_api.h`.
     pub fn copy_from_buffer<T: Num32>(&mut self, data: &mut [T]) {
         check_call!(ts::TVMArrayCopyFromBytes(
             self.handle,
@@ -207,17 +199,17 @@ impl NDArray {
 
     /// Converts a Rust's ndarray to TVM NDArray.
     pub fn from_rust_ndarray<T: Num32 + Copy>(
-        rnd: &ArrayD<T>,
+        rnd: &mut ArrayD<T>,
         ctx: TVMContext,
         dtype: TVMType,
     ) -> Result<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
-        let mut vec = Array::from_iter(rnd.iter())
+        let mut buf = Array::from_iter(rnd.iter())
             .iter()
             .map(|e| **e)
             .collect::<Vec<T>>();
-        nd.copy_from_buffer(vec.as_mut_slice());
+        nd.copy_from_buffer(&mut buf);
         Ok(nd)
     }
 }
@@ -347,11 +339,11 @@ mod tests {
 
     #[test]
     fn rust_ndarray() {
-        let a = Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
+        let mut a = Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
             .unwrap()
             .into_dyn();
         let nd =
-            NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+            NDArray::from_rust_ndarray(&mut a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
         assert_eq!(nd.shape(), Some(vec![2, 2]));
         let rnd: ArrayD<f32> = ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));

@@ -26,25 +26,22 @@ use TVMArgValue;
 use TVMRetValue;
 
 lazy_static! {
-    static ref GLOBAL_FUNCTION_NAMES: Mutex<Vec<&'static str>> = list_global_func_names();
-}
-
-fn list_global_func_names() -> Mutex<Vec<&'static str>> {
-    let mut out_size = 0 as c_int;
-    let mut name = ptr::null() as *const c_char;
-    let mut out_array = &mut name as *mut _;
-    check_call!(ts::TVMFuncListGlobalNames(
-        &mut out_size as *mut _,
-        &mut out_array as *mut _
-    ));
-    let list = unsafe { slice::from_raw_parts(out_array, out_size as usize) };
-    let list = list
-        .iter()
-        .map(|&p| unsafe { CStr::from_ptr(p) })
-        .map(|cs| cs.to_bytes())
-        .map(|bs| str::from_utf8(bs).unwrap())
-        .collect();
-    Mutex::new(list)
+    static ref GLOBAL_FUNCTION_NAMES: Mutex<Vec<&'static str>> = {
+        let mut out_size = 0 as c_int;
+        let name = ptr::null_mut() as *mut c_char;
+        let mut out_array = name as *mut _;
+        check_call!(ts::TVMFuncListGlobalNames(
+            &mut out_size as *mut _,
+            &mut out_array
+        ));
+        let names_list = unsafe { slice::from_raw_parts(out_array, out_size as usize) };
+        Mutex::new(
+            names_list
+                .into_iter()
+                .map(|&p| unsafe { CStr::from_ptr(p).to_str().unwrap() })
+                .collect(),
+        )
+    };
 }
 
 /// Returns a registered TVM function by name.
@@ -59,19 +56,20 @@ pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Opti
         mem::forget(name);
         return Some(Function::new(handle, is_global, false));
     } else {
-        if allow_missing {
-            return None;
-        } else {
-            panic!("Cannot find global function {:?}", name);
-        }
+        None
     }
 }
 
-/// Wrapper around TVM function handle.
+/// Wrapper around TVM function handle which includes `is_global`
+/// indicating whether the function is global or not and `is_released`
+/// to help for dropping the function handle.
+/// The value of these fields can be accessed through their respective methods.
 #[derive(Debug, Hash)]
 pub struct Function {
     handle: ts::TVMFunctionHandle,
+    // whether the registered function is global or not.
     is_global: bool,
+    // whether the function has been released or not.
     is_released: bool,
 }
 
@@ -86,17 +84,16 @@ impl Function {
 
     /// For a given function, it returns a function by name.
     pub fn get_function(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
-        let name = CString::new(name).unwrap();
         GLOBAL_FUNCTION_NAMES
             .lock()
             .unwrap()
             .iter()
-            .find(|&&s| s == name.to_str().expect("Invalid UTF-8 name"))
+            .find(|&&s| s == name)
             .map(|nm| get_global_func(nm, is_global, allow_missing).unwrap())
     }
 
     /// Returns the underlying TVM function handle.
-    pub fn as_handle(&self) -> ts::TVMFunctionHandle {
+    pub fn handle(&self) -> ts::TVMFunctionHandle {
         self.handle
     }
 
@@ -394,7 +391,7 @@ pub fn register(
     let name = CString::new(name).unwrap();
     check_call!(ts::TVMFuncRegisterGlobal(
         name.as_ptr() as *const c_char,
-        func.as_handle(),
+        func.handle(),
         ovd
     ));
     mem::forget(name);
@@ -442,19 +439,53 @@ macro_rules! register_global_func {
     }}
 }
 
+/// Convenient macro for calling TVM packed functions by providing
+/// function identifier and the arguments. This macro output a `Result`
+/// for easier error handling in client side.
+///
+/// **Note**: this macro does *not* expect an outside mutable output. To
+/// set mutable output use [`set_output`] directly in the builder pattern.
+///
+/// [`set_output`]:struct.Builder.html:#method.set_output
+///
+/// ## Example
+///
+/// Instead of
+///
+/// ```
+/// function::Builder::from(func).arg(&a).arg(&b).invoke();
+/// ```
+///
+/// one can use
+///
+/// ```
+/// tvm_call!(func, &a, &b);
+/// ```
+#[macro_export]
+macro_rules! tvm_call {
+    ($fn_name:ident, $($arg:expr),*) => {{
+        let mut builder = $crate::function::Builder::from($fn_name);
+        $(
+            builder.arg($arg);
+        )*
+        builder.invoke()
+    }}
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
     fn list_global_func() {
-        let list = list_global_func_names();
-        assert!(list
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|ref s| ***s == "tvm.graph_runtime.create")
-            .is_some());
+        assert!(
+            GLOBAL_FUNCTION_NAMES
+                .lock()
+                .unwrap()
+                .iter()
+                .find(|ref s| ***s == "tvm.graph_runtime.create")
+                .is_some()
+        );
     }
 
     #[test]

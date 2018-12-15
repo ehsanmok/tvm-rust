@@ -8,14 +8,19 @@ use std::ptr;
 
 use ts;
 
-use function::{self, Function};
+use function::Function;
 use internal_api;
 use Error;
 use Result;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 
-/// Wrapper around TVM module handle.
+/// Wrapper around TVM module handle which contains an entry function
+/// which can be applied to an imported module through [`entry_func`]
+/// and to check whether the module has be dropped use [`is_released`].
+///
+/// [`entry_func`]:struct.Module.html#method.entry_func
+/// [`is_released`]:struct.Module.html#method.is_released
 #[derive(Debug, Clone)]
 pub struct Module {
     pub(crate) handle: ts::TVMModuleHandle,
@@ -76,9 +81,7 @@ impl Module {
         let path_str = path.to_str().unwrap().to_owned();
         let ext = path.extension().unwrap().to_str().unwrap().to_owned();
         let func = internal_api::get_api("module._LoadFromFile".to_owned());
-        let ret = function::Builder::from(func)
-            .args(&[path_str, ext])
-            .invoke()?;
+        let ret = tvm_call!(func, &path_str, &ext)?;
         mem::forget(path);
         Ok(ret.to_module())
     }
@@ -86,15 +89,16 @@ impl Module {
     /// Checks if a target device is enabled for a module.
     pub fn enabled(&self, target: String) -> bool {
         let func = internal_api::get_api("module._Enabled".to_owned());
-        let ret = function::Builder::from(func).arg(&target).invoke().unwrap();
+        let ret = tvm_call!(func, &target).unwrap();
         ret.to_int() != 0
     }
 
     /// Returns the underlying module handle.
-    pub fn as_handle(&self) -> ts::TVMModuleHandle {
+    pub fn handle(&self) -> ts::TVMModuleHandle {
         self.handle
     }
 
+    /// Returns true if the underlying module has been dropped and false otherwise.
     pub fn is_released(&self) -> bool {
         self.is_released
     }

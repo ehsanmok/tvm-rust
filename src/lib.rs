@@ -55,10 +55,11 @@ pub(crate) fn set_last_error(err: &Error) {
     }
 }
 
+#[macro_use]
+pub mod function;
 pub mod bytearray;
 pub mod context;
 pub mod errors;
-pub mod function;
 mod internal_api;
 pub mod module;
 pub mod ndarray;

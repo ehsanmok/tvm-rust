@@ -38,9 +38,9 @@ fn main() -> Result<(), Box<Error>> {
 
     let arr = Array::from_shape_vec((224, 224, 3), pixels)?;
     let arr: ArrayD<f32> = arr.permuted_axes([2, 0, 1]).into_dyn();
-    let arr = arr.insert_axis(Axis(0));
+    let mut arr = arr.insert_axis(Axis(0));
     // create input tensor from rust's ndarray
-    let input = NDArray::from_rust_ndarray(&arr, TVMContext::cpu(0), TVMType::from("float"))?;
+    let input = NDArray::from_rust_ndarray(&mut arr, TVMContext::cpu(0), TVMType::from("float"))?;
     println!("input size is {:?}", input.shape().unwrap());
     let graph = fs::read_to_string("deploy_graph.json")?;
     // load module
@@ -48,13 +48,14 @@ fn main() -> Result<(), Box<Error>> {
     // get the global TVM graph runtime function
     let runtime_create_fn =
         Function::get_function("tvm.graph_runtime.create", true, false).unwrap();
-    // create runtime function from Rust
-    let runtime_create_fn_ret = function::Builder::from(runtime_create_fn)
-        .arg(&graph)
-        .arg(&lib)
-        .arg(&ctx.device_type)
-        .arg(&ctx.device_id)
-        .invoke()?;
+
+    let runtime_create_fn_ret = tvm_call!(
+        runtime_create_fn,
+        &graph,
+        &lib,
+        &ctx.device_type,
+        &ctx.device_id
+    )?;
     // get graph runtime module
     let graph_runtime_module = runtime_create_fn_ret.to_module();
     // get the registered `load_params` from runtime module
@@ -65,20 +66,17 @@ fn main() -> Result<(), Box<Error>> {
     let params: Vec<u8> = fs::read("deploy_param.params")?;
     let barr = TVMByteArray::from(&params);
     // load the parameters
-    function::Builder::from(load_param_fn).arg(&barr).invoke()?;
+    tvm_call!(load_param_fn, &barr)?;
     // get the set_input function
     let set_input_fn = graph_runtime_module
         .get_function("set_input", false)
         .unwrap();
-    // set the input via set_input function
-    function::Builder::from(set_input_fn)
-        .arg("data")
-        .arg(&input)
-        .invoke()?;
+
+    tvm_call!(set_input_fn, "data", &input)?;
     // get `run` function from runtime module
     let run_fn = graph_runtime_module.get_function("run", false).unwrap();
-    // execute the run function
-    function::Builder::from(run_fn).invoke()?;
+    // execute the run function. Note that it has no argument.
+    tvm_call!(run_fn,)?;
     // prepare to get the output
     let mut output_shape = vec![1, 1000];
     let output = empty(
@@ -91,10 +89,7 @@ fn main() -> Result<(), Box<Error>> {
         .get_function("get_output", false)
         .unwrap();
     // execute the get output function
-    function::Builder::from(get_output_fn)
-        .arg(&0)
-        .arg(&output)
-        .invoke()?;
+    tvm_call!(get_output_fn, &0, &output)?;
     // flatten the output as Vec<f32>
     let output = output.to_vec::<f32>()?;
     // find the maximum entry in the output and its index

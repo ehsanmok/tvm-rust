@@ -20,10 +20,9 @@ use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_void;
 use std::ptr;
 
-use ts;
-
 use function;
 use internal_api;
+use ts;
 use Result;
 
 /// Device type which can be from a supported device name. See the supported devices
@@ -81,16 +80,20 @@ impl From<ts::DLDeviceType> for TVMDeviceType {
 
 impl Display for TVMDeviceType {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            TVMDeviceType(1) => write!(f, "cpu"),
-            TVMDeviceType(2) => write!(f, "gpu"),
-            TVMDeviceType(3) => write!(f, "cpu_pinned"),
-            TVMDeviceType(4) => write!(f, "opencl"),
-            TVMDeviceType(8) => write!(f, "meta"),
-            TVMDeviceType(9) => write!(f, "vpi"),
-            TVMDeviceType(10) => write!(f, "rocm"),
-            TVMDeviceType(_) => write!(f, "rpc"),
-        }
+        write!(
+            f,
+            "{}",
+            match self {
+                TVMDeviceType(1) => "cpu",
+                TVMDeviceType(2) => "gpu",
+                TVMDeviceType(3) => "cpu_pinned",
+                TVMDeviceType(4) => "opencl",
+                TVMDeviceType(8) => "meta",
+                TVMDeviceType(9) => "vpi",
+                TVMDeviceType(10) => "rocm",
+                TVMDeviceType(_) => "rpc",
+            }
+        )
     }
 }
 
@@ -145,11 +148,6 @@ impl TVMContext {
             device_id: device_id,
         }
     }
-
-    /// Gets the currect context.
-    pub fn current_context(&self) -> &Self {
-        self
-    }
 }
 
 macro_rules! impl_ctxs {
@@ -186,12 +184,7 @@ impl TVMContext {
     pub fn exist(&self) -> bool {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.0 as usize;
-        let ret = function::Builder::from(func)
-            .arg(&dt)
-            .arg(&self.device_id)
-            .arg(&0)
-            .invoke()
-            .unwrap();
+        let ret = tvm_call!(func, &dt, &self.device_id, &0).unwrap();
         ret.to_int() != 0
     }
 
@@ -264,11 +257,11 @@ mod tests {
         let ctx = TVMContext::cpu(0);
         println!("ctx: {}", ctx);
         let default_ctx = TVMContext::new(TVMDeviceType(1), 0);
-        assert_eq!(ctx.current_context().clone(), default_ctx);
+        assert_eq!(ctx.clone(), default_ctx);
         assert_ne!(ctx, TVMContext::gpu(0));
 
         let str_ctx = TVMContext::new(TVMDeviceType::from("gpu"), 0);
-        assert_eq!(str_ctx.current_context().clone(), str_ctx);
+        assert_eq!(str_ctx.clone(), str_ctx);
         assert_ne!(str_ctx, TVMContext::new(TVMDeviceType::from("cpu"), 0));
     }
 
@@ -276,22 +269,5 @@ mod tests {
     fn sync() {
         let ctx = TVMContext::cpu(0);
         assert!(ctx.sync().is_ok())
-    }
-
-    #[test]
-    fn dev_attributes() {
-        let ctx = TVMContext::cpu(0);
-        assert!(ctx.exist());
-        println!("max thread per block: {}", ctx.max_threads_per_block());
-        println!("warp size: {}", ctx.warp_size());
-        println!(
-            "max shared memory per block: {}",
-            ctx.max_shared_memory_per_block()
-        );
-        println!("compute version: {}", ctx.compute_version());
-        println!("device name: {}", ctx.device_name());
-        println!("max clock rate: {}", ctx.max_clock_rate());
-        println!("multi processor count: {}", ctx.multi_processor_count());
-        println!("max thread dimensions: {}", ctx.max_thread_dimensions());
     }
 }

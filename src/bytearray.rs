@@ -4,8 +4,7 @@
 //! This function can be obtained from a graph runtime module loading the model.
 //! For more detail, please see the example `resnet` in `examples` repository.
 
-use std::ffi::CString;
-use std::mem;
+use std::os::raw::c_char;
 
 use ts;
 
@@ -48,15 +47,11 @@ impl TVMByteArray {
 
 impl<'a> From<&'a Vec<u8>> for TVMByteArray {
     fn from(arg: &Vec<u8>) -> Self {
-        unsafe {
-            let data = CString::from_vec_unchecked(arg.to_vec());
-            let barr = ts::TVMByteArray {
-                data: data.as_ptr(),
-                size: arg.len(),
-            };
-            mem::forget(data);
-            TVMByteArray::new(barr)
-        }
+        let barr = ts::TVMByteArray {
+            data: arg.as_ptr() as *const c_char,
+            size: arg.len(),
+        };
+        TVMByteArray::new(barr)
     }
 }
 
