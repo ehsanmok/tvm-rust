@@ -23,8 +23,8 @@ pub(crate) fn get_api(name: String) -> Function {
         func = Function::get_function(&name, true, false);
         set(
             name,
-            func.clone().expect("access to internal_api never panics"),
+            func.clone().expect("access to `internal_api` never panics"),
         );
     }
-    func.expect("access to internal_api never panics")
+    func.expect("access to `internal_api` never panics")
 }

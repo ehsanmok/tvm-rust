@@ -66,7 +66,7 @@ pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Opti
 /// The value of these fields can be accessed through their respective methods.
 #[derive(Debug, Hash)]
 pub struct Function {
-    handle: ts::TVMFunctionHandle,
+    pub(crate) handle: ts::TVMFunctionHandle,
     // whether the registered function is global or not.
     is_global: bool,
     // whether the function has been dropped from frontend or not.
@@ -119,7 +119,7 @@ impl Clone for Function {
 
 impl Drop for Function {
     fn drop(&mut self) {
-        if !self.is_released & !self.is_global {
+        if !self.is_released && !self.is_global {
             check_call!(ts::TVMFuncFree(self.handle));
             self.is_released = true;
         }
@@ -277,7 +277,7 @@ impl<'a> From<Function> for Builder<'a> {
     }
 }
 
-/// Converts a mutable reference of a [`Module`] to builder.
+/// Converts a mutable reference of a [`Module`] to [`function::Builder`].
 impl<'a: 'b, 'b> From<&'b mut Module> for Builder<'a> {
     fn from(module: &mut Module) -> Self {
         Builder::new(module.entry.take(), None, None)

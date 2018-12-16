@@ -174,17 +174,6 @@ impl<'a> From<&'a mut CString> for TVMValue {
     }
 }
 
-impl<'a> From<&'a CStr> for TVMValue {
-    fn from(arg: &CStr) -> TVMValue {
-        let arg = arg.clone();
-        let inner = ts::TVMValue {
-            v_str: arg.as_ptr() as *const c_char,
-        };
-        mem::forget(arg);
-        Self::new(ValueKind::Str, inner)
-    }
-}
-
 impl<'a> From<&'a Module> for TVMValue {
     fn from(arg: &Module) -> Self {
         let inner = ts::TVMValue {
@@ -206,7 +195,7 @@ impl<'a> From<&'a mut Module> for TVMValue {
 impl<'a> From<&'a Function> for TVMValue {
     fn from(arg: &Function) -> Self {
         let inner = ts::TVMValue {
-            v_handle: arg as *const _ as *mut c_void,
+            v_handle: arg.handle as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -215,7 +204,7 @@ impl<'a> From<&'a Function> for TVMValue {
 impl<'a> From<&'a mut Function> for TVMValue {
     fn from(arg: &mut Function) -> Self {
         let inner = ts::TVMValue {
-            v_handle: arg as *mut _ as *mut c_void,
+            v_handle: arg.handle as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
@@ -224,7 +213,7 @@ impl<'a> From<&'a mut Function> for TVMValue {
 impl<'a> From<&'a NDArray> for TVMValue {
     fn from(arr: &NDArray) -> Self {
         let inner = ts::TVMValue {
-            v_handle: arr.handle as *const _ as *mut ts::TVMArray as *mut c_void,
+            v_handle: arr.handle as *mut _ as *mut c_void,
         };
         Self::new(ValueKind::Handle, inner)
     }
