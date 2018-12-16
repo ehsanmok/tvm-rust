@@ -42,17 +42,15 @@ impl Module {
     }
 
     /// Sets the entry function of a module.
-    pub fn entry_func(mut self) -> Self {
+    pub fn entry_func(&mut self) {
         if self.entry.is_none() {
             self.entry = self.get_function(ENTRY_FUNC, false).ok();
         }
-        self
     }
 
     /// Gets a function by name from a registered module.
     pub fn get_function(&self, name: &str, query_import: bool) -> Result<Function> {
         let name = CString::new(name)?;
-        let query_import = if query_import == true { 1 } else { 0 };
         let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
         check_call!(ts::TVMModGetFunction(
             self.handle,

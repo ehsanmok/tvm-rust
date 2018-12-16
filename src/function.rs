@@ -224,7 +224,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
         let mut ret_val = unsafe { mem::uninitialized::<ts::TVMValue>() };
         let mut ret_type_code = 0 as c_int;
         if self.arg_buf.is_some() {
-            let arg_buf = self.arg_buf.unwrap();
+            let arg_buf = self.arg_buf?;
             let mut num_args = arg_buf.len();
             let mut values = arg_buf
                 .iter()
@@ -236,15 +236,15 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
                 .collect::<Vec<_>>();
             if self.ret_buf.is_some() {
                 num_args = num_args + 1;
-                ret_val = *self.ret_buf.clone().unwrap()[0].value;
-                ret_type_code = self.ret_buf.clone().unwrap()[0].type_code as c_int;
+                ret_val = *self.ret_buf.clone()?[0].value;
+                ret_type_code = self.ret_buf.clone()?[0].type_code as c_int;
                 values.append(&mut vec![ret_val]);
                 tcodes.append(&mut vec![ret_type_code]);
             }
             values.truncate(num_args);
             tcodes.truncate(num_args);
             check_call!(ts::TVMFuncCall(
-                self.func.unwrap().handle,
+                self.func?.handle,
                 values.as_mut_ptr(),
                 tcodes.as_mut_ptr(),
                 num_args as c_int,
@@ -253,7 +253,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
             ));
         } else {
             check_call!(ts::TVMFuncCall(
-                self.func.unwrap().handle,
+                self.func?.handle,
                 ptr::null_mut(),
                 ptr::null_mut(),
                 0 as c_int,
@@ -292,44 +292,47 @@ unsafe extern "C" fn tvm_callback(
     fhandle: *mut c_void,
 ) -> c_int {
     let len = num_args as usize;
-    let args_list = unsafe { slice::from_raw_parts_mut(args, len).to_vec() };
-    let type_codes_list = unsafe { slice::from_raw_parts_mut(type_codes, len).to_vec() };
+    let args_list = unsafe { slice::from_raw_parts_mut(args, len) };
+    let type_codes_list = unsafe { slice::from_raw_parts_mut(type_codes, len) };
     let mut local_args: Vec<TVMArgValue> = Vec::new();
-    let mut value = unsafe { mem::uninitialized::<ts::TVMValue>() };
-    let mut tcode = unsafe { mem::uninitialized::<c_int>() };
-    let rust_fn = unsafe {
-        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle)
-    };
-    for i in 0..len {
-        value = args_list[i];
-        tcode = type_codes_list[i];
-        if tcode == TypeCode::kNodeHandle as c_int
-            || tcode == TypeCode::kFuncHandle as c_int
-            || tcode == TypeCode::kModuleHandle as c_int
-        {
-            check_call!(ts::TVMCbArgToReturn(&mut value as *mut _, tcode));
+    unsafe {
+        let mut value = mem::uninitialized::<ts::TVMValue>();
+        let mut tcode = mem::uninitialized::<c_int>();
+        let rust_fn = mem::transmute::<
+            *mut c_void,
+            fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>,
+        >(fhandle);
+        for i in 0..len {
+            value = args_list[i];
+            tcode = type_codes_list[i];
+            if tcode == TypeCode::kNodeHandle as c_int
+                || tcode == TypeCode::kFuncHandle as c_int
+                || tcode == TypeCode::kModuleHandle as c_int
+            {
+                check_call!(ts::TVMCbArgToReturn(&mut value as *mut _, tcode));
+            }
+            local_args.push(TVMArgValue::new(
+                TVMValue::new(ValueKind::Handle, value),
+                tcode.into(),
+            ));
         }
-        local_args.push(TVMArgValue::new(
-            TVMValue::new(ValueKind::Handle, value),
-            tcode.into(),
+
+        let rv = match rust_fn(local_args.as_slice()) {
+            Ok(v) => v,
+            Err(msg) => {
+                ::set_last_error(&msg);
+                return -1;
+            }
+        };
+        let mut ret_val = *rv.value;
+        let mut ret_type_code = rv.type_code as c_int;
+        check_call!(ts::TVMCFuncSetReturn(
+            ret,
+            &mut ret_val as *mut _,
+            &mut ret_type_code as *mut _,
+            1 as c_int
         ));
     }
-
-    let rv = match rust_fn(local_args.as_slice()) {
-        Ok(v) => v,
-        Err(msg) => {
-            ::set_last_error(&msg);
-            return -1;
-        }
-    };
-    let mut ret_val = *rv.value;
-    let mut ret_type_code = rv.type_code as c_int;
-    check_call!(ts::TVMCFuncSetReturn(
-        ret,
-        &mut ret_val as *mut _,
-        &mut ret_type_code as *mut _,
-        1 as c_int
-    ));
     0
 }
 
@@ -384,12 +387,11 @@ pub fn register(
     override_: bool,
 ) -> Result<()> {
     let func = convert_to_tvm_func(f);
-    let ovd = if override_ { 1 } else { 0 };
-    let name = CString::new(name).unwrap();
+    let name = CString::new(name)?;
     check_call!(ts::TVMFuncRegisterGlobal(
         name.as_ptr() as *const c_char,
         func.handle(),
-        ovd
+        override_ as c_int
     ));
     mem::forget(name);
     Ok(())

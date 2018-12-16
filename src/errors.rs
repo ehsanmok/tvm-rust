@@ -22,8 +22,9 @@ error_chain!{
             description("type mismatch!")
             display("expected type `{}`, but found `{}`", expected, found)
         }
-        NoneError {
-            description("called `Option::unwrap()` on a `None` value")
+        MissingShapeError {
+            description("ndarray `shape()` returns `None`")
+            display("called `Option::unwrap()` on a `None` value")
         }
 
     }
@@ -36,6 +37,6 @@ error_chain!{
 
 impl From<option::NoneError> for Error {
     fn from(err: option::NoneError) -> Self {
-        ErrorKind::NoneError.into()
+        ErrorKind::MissingShapeError.into()
     }
 }

@@ -204,11 +204,8 @@ impl NDArray {
     ) -> Result<Self> {
         let mut shape = rnd.shape().to_vec();
         let mut nd = empty(&mut shape, ctx, dtype);
-        let mut buf = Array::from_iter(rnd.iter())
-            .iter()
-            .map(|e| **e)
-            .collect::<Vec<T>>();
-        nd.copy_from_buffer(&mut buf);
+        let mut buf = Array::from_iter(rnd.into_iter().map(|&v| v as T));
+        nd.copy_from_buffer(buf.as_slice_mut()?);
         Ok(nd)
     }
 }

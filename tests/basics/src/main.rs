@@ -20,7 +20,7 @@ fn main() {
         let path = Path::new("add_cpu.so");
         let mut fadd = Module::load(&path).unwrap();
         assert!(fadd.enabled("cpu".to_owned()));
-        fadd = fadd.entry_func();
+        fadd.entry_func();
         function::Builder::from(&mut fadd)
             .arg(&arr)
             .arg(&arr)
@@ -45,7 +45,7 @@ fn main() {
         let fadd_dep = Module::load(ptx).unwrap();
         assert!(fadd.enabled("gpu".to_owned()), "GPU is not enabled!");
         fadd.import_module(fadd_dep);
-        fadd = fadd.entry_func();
+        fadd.entry_func();
         function::Builder::from(&mut fadd)
             .arg(&arr)
             .arg(&arr)
