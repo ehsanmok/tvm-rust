@@ -91,20 +91,10 @@ impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
 impl_prim_val!(f64, ValueKind::Float, v_float64, f64);
 impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
 
-// impl Try for TVMValue {
-//     type Ok = TVMValue;
-//     type Error = Error;
-//     fn into_result(self) -> StdResult<Self::Ok, Self::Error> {}
-//     fn from_ok(v: Self::Ok) -> Self {}
-//     fn from_error(v: Self::Error) -> Self {
-//         v
-//     }
-// }
-
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
         let len = arg.len();
-        let arg = CString::new(arg).unwrap();
+        let arg = arg.to_owned();
         let arr = ts::TVMByteArray {
             data: arg.as_ptr() as *mut c_char,
             size: len,
@@ -120,7 +110,7 @@ impl<'a> From<&'a [u8]> for TVMValue {
 impl<'a> From<&'a mut [u8]> for TVMValue {
     fn from(arg: &mut [u8]) -> TVMValue {
         let len = arg.len();
-        let arg = CString::new(arg).unwrap();
+        let arg = arg.to_owned();
         let arr = ts::TVMByteArray {
             data: arg.as_ptr() as *mut c_char,
             size: len as usize,
@@ -168,11 +158,9 @@ impl<'a> From<&'a mut String> for TVMValue {
 
 impl<'a> From<&'a CString> for TVMValue {
     fn from(arg: &CString) -> TVMValue {
-        let arg = arg.clone();
         let inner = ts::TVMValue {
             v_str: arg.as_ptr() as *const c_char,
         };
-        mem::forget(arg);
         Self::new(ValueKind::Str, inner)
     }
 }

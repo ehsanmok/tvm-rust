@@ -219,7 +219,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
     type Output = Result<TVMRetValue<'a>>;
     extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
         if self.func.is_none() {
-            bail!("{}", ErrorKind::NoFunction);
+            bail!("{}", ErrorKind::FunctionNotFound);
         }
         let mut ret_val = unsafe { mem::uninitialized::<ts::TVMValue>() };
         let mut ret_type_code = 0 as c_int;

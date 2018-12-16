@@ -1,4 +1,4 @@
-//! This module implements the TVM custom [`Error`] and [`Result`] types.
+//! This module implements TVM custom [`Error`], [`ErrorKind`] and [`Result`] types.
 
 use std::ffi;
 use std::option;
@@ -14,22 +14,23 @@ error_chain!{
             description("null handle")
             display("requested `{}` handle is null", name)
         }
-        NoFunction {
-            description("function was not set in `function::Builder`")
+        FunctionNotFound {
+            description("function not found")
+            display("function was not set in `function::Builder`")
         }
         TypeMismatch(expected: String, found: String) {
             description("type mismatch!")
             display("expected type `{}`, but found `{}`", expected, found)
         }
         NoneError {
-            description("called `unwrap()` on None")
+            description("called `Option::unwrap()` on a `None` value")
         }
 
     }
     foreign_links {
         ShapeError(rust_ndarray::ShapeError);
-        CStringNulError(ffi::NulError);
-        CStringIntoString(ffi::IntoStringError);
+        NulError(ffi::NulError);
+        IntoStringError(ffi::IntoStringError);
     }
 }
 

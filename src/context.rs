@@ -48,16 +48,16 @@ impl Default for TVMDeviceType {
 impl From<TVMDeviceType> for ts::DLDeviceType {
     fn from(device_type: TVMDeviceType) -> Self {
         match device_type.0 {
-            1 => ts::DLDeviceType::kDLCPU,
-            2 => ts::DLDeviceType::kDLGPU,
-            3 => ts::DLDeviceType::kDLCPUPinned,
-            4 => ts::DLDeviceType::kDLOpenCL,
-            7 => ts::DLDeviceType::kDLVulkan,
-            8 => ts::DLDeviceType::kDLMetal,
-            9 => ts::DLDeviceType::kDLVPI,
-            10 => ts::DLDeviceType::kDLROCM,
-            12 => ts::DLDeviceType::kDLExtDev,
-            _ => panic!("Device type not found!"),
+            1 => ts::DLDeviceType_kDLCPU,
+            2 => ts::DLDeviceType_kDLGPU,
+            3 => ts::DLDeviceType_kDLCPUPinned,
+            4 => ts::DLDeviceType_kDLOpenCL,
+            7 => ts::DLDeviceType_kDLVulkan,
+            8 => ts::DLDeviceType_kDLMetal,
+            9 => ts::DLDeviceType_kDLVPI,
+            10 => ts::DLDeviceType_kDLROCM,
+            12 => ts::DLDeviceType_kDLExtDev,
+            _ => panic!("device type not found!"),
         }
     }
 }
@@ -65,15 +65,16 @@ impl From<TVMDeviceType> for ts::DLDeviceType {
 impl From<ts::DLDeviceType> for TVMDeviceType {
     fn from(device_type: ts::DLDeviceType) -> Self {
         match device_type {
-            ts::DLDeviceType::kDLCPU => TVMDeviceType(1),
-            ts::DLDeviceType::kDLGPU => TVMDeviceType(2),
-            ts::DLDeviceType::kDLCPUPinned => TVMDeviceType(3),
-            ts::DLDeviceType::kDLOpenCL => TVMDeviceType(4),
-            ts::DLDeviceType::kDLVulkan => TVMDeviceType(7),
-            ts::DLDeviceType::kDLMetal => TVMDeviceType(8),
-            ts::DLDeviceType::kDLVPI => TVMDeviceType(9),
-            ts::DLDeviceType::kDLROCM => TVMDeviceType(10),
-            ts::DLDeviceType::kDLExtDev => TVMDeviceType(12),
+            ts::DLDeviceType_kDLCPU => TVMDeviceType(1),
+            ts::DLDeviceType_kDLGPU => TVMDeviceType(2),
+            ts::DLDeviceType_kDLCPUPinned => TVMDeviceType(3),
+            ts::DLDeviceType_kDLOpenCL => TVMDeviceType(4),
+            ts::DLDeviceType_kDLVulkan => TVMDeviceType(7),
+            ts::DLDeviceType_kDLMetal => TVMDeviceType(8),
+            ts::DLDeviceType_kDLVPI => TVMDeviceType(9),
+            ts::DLDeviceType_kDLROCM => TVMDeviceType(10),
+            ts::DLDeviceType_kDLExtDev => TVMDeviceType(12),
+            _ => panic!("device type not found!"),
         }
     }
 }
