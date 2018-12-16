@@ -26,20 +26,16 @@ fn run() -> Result<(), Box<dyn Error>> {
     let bindings = bindgen::Builder::default()
         .header(format!("{}/include/tvm/runtime/c_runtime_api.h", tvm_home))
         .clang_arg(format!("-I{}/3rdparty/dlpack/include/", tvm_home))
-        .rustified_enum("DLDataTypeCode")
-        .rustified_enum("DLDeviceType")
-        .rustified_enum("TVMTypeCode")
-        .rustified_enum("TVMDeviceExtType")
-        .blacklist_type("max_align_t")
+        .blacklist_type("max_align_t") // https://github.com/rust-lang-nursery/rust-bindgen/issues/550
         .layout_tests(false)
         .derive_partialeq(true)
         .derive_eq(true)
         .generate()
-        .expect("Unable to generate bindings");
+        .expect("unable to generate bindings");
 
     bindings
         .write_to_file(PathBuf::from("src/bindgen.rs"))
-        .expect("Can not write the bindings!");
+        .expect("can not write the bindings!");
 
     Ok(())
 }
