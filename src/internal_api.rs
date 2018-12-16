@@ -21,7 +21,10 @@ pub(crate) fn get_api(name: String) -> Function {
     let mut func = get(name.clone());
     if func.is_none() {
         func = Function::get_function(&name, true, false);
-        set(name, func.clone().unwrap());
+        set(
+            name,
+            func.clone().expect("access to internal_api never panics"),
+        );
     }
-    func.unwrap()
+    func.expect("access to internal_api never panics")
 }

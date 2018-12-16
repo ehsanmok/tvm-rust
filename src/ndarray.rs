@@ -97,6 +97,7 @@ impl NDArray {
         unsafe { (*self.handle).ndim as usize }
     }
 
+    /// Returns the strides of the underlying NDArray.
     pub fn strides(&self) -> Option<&[usize]> {
         unsafe {
             let sz = self.ndim() * mem::size_of::<usize>();
@@ -105,8 +106,26 @@ impl NDArray {
         }
     }
 
-    pub fn is_contiguous(&self) -> bool {
-        self.strides().is_none()
+    pub fn is_contiguous(&self) -> Result<bool> {
+        Ok(match self.strides() {
+            None => true,
+            Some(strides) => {
+                // MissingShapeError in case shape is not determined
+                self.shape()?
+                    .iter()
+                    .zip(strides)
+                    .rfold(
+                        (true, 1),
+                        |(is_contig, expected_stride), (shape, stride)| {
+                            (
+                                is_contig && *stride == expected_stride,
+                                expected_stride * (*shape as usize),
+                            )
+                        },
+                    )
+                    .0
+            }
+        })
     }
 
     pub fn byte_offset(&self) -> isize {
@@ -312,7 +331,7 @@ mod tests {
         assert_eq!(ndarray.shape(), Some(shape));
         assert_eq!(ndarray.to_vec::<i32>().unwrap(), data);
         assert_eq!(ndarray.ndim(), 1);
-        assert!(ndarray.is_contiguous());
+        assert!(ndarray.is_contiguous().is_ok());
         assert_eq!(ndarray.byte_offset(), 0);
         let mut shape = vec![4];
         let e = empty(&mut shape, TVMContext::cpu(0), TVMType::from("int"));

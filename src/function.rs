@@ -291,11 +291,11 @@ unsafe extern "C" fn tvm_callback(
     ret: ts::TVMRetValueHandle,
     fhandle: *mut c_void,
 ) -> c_int {
-    let len = num_args as usize;
-    let args_list = unsafe { slice::from_raw_parts_mut(args, len) };
-    let type_codes_list = unsafe { slice::from_raw_parts_mut(type_codes, len) };
-    let mut local_args: Vec<TVMArgValue> = Vec::new();
     unsafe {
+        let len = num_args as usize;
+        let args_list = slice::from_raw_parts_mut(args, len);
+        let type_codes_list = slice::from_raw_parts_mut(type_codes, len);
+        let mut local_args: Vec<TVMArgValue> = Vec::new();
         let mut value = mem::uninitialized::<ts::TVMValue>();
         let mut tcode = mem::uninitialized::<c_int>();
         let rust_fn = mem::transmute::<
