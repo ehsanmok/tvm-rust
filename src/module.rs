@@ -76,8 +76,8 @@ impl Module {
     /// Loads a module shared library from path.
     pub fn load(path: &Path) -> Result<Module> {
         let path = path.to_owned();
-        let path_str = path.to_str().unwrap().to_owned();
-        let ext = path.extension().unwrap().to_str().unwrap().to_owned();
+        let path_str = path.to_str()?.to_owned();
+        let ext = path.extension()?.to_str()?.to_owned();
         let func = internal_api::get_api("module._LoadFromFile".to_owned());
         let ret = tvm_call!(func, &path_str, &ext)?;
         mem::forget(path);

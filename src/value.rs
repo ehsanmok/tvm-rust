@@ -91,6 +91,16 @@ impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
 impl_prim_val!(f64, ValueKind::Float, v_float64, f64);
 impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
 
+// impl Try for TVMValue {
+//     type Ok = TVMValue;
+//     type Error = Error;
+//     fn into_result(self) -> StdResult<Self::Ok, Self::Error> {}
+//     fn from_ok(v: Self::Ok) -> Self {}
+//     fn from_error(v: Self::Error) -> Self {
+//         v
+//     }
+// }
+
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
         let len = arg.len();

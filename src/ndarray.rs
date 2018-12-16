@@ -130,10 +130,10 @@ impl NDArray {
         if self.shape().is_none() {
             bail!("{}", ErrorKind::EmptyArray);
         }
-        let earr = empty(&mut self.shape().unwrap(), TVMContext::cpu(0), self.dtype());
-        let target = self.copy_to_ndarray(earr).unwrap();
+        let earr = empty(&mut self.shape()?, TVMContext::cpu(0), self.dtype());
+        let target = self.copy_to_ndarray(earr)?;
         let arr = unsafe { *(target.handle) };
-        let sz = self.size().unwrap() as usize;
+        let sz = self.size()? as usize;
         let mut v: Vec<T> = Vec::with_capacity(sz * mem::size_of::<T>());
         unsafe {
             v.as_mut_ptr()
@@ -191,7 +191,7 @@ impl NDArray {
 
     /// Copies the NDArray to a target context.
     pub fn copy_to_ctx(&self, target: &TVMContext) -> Result<NDArray> {
-        let tmp = empty(&mut self.shape().unwrap(), target.clone(), self.dtype());
+        let tmp = empty(&mut self.shape()?, target.clone(), self.dtype());
         let copy = self.copy_to_ndarray(tmp)?;
         Ok(copy)
     }
@@ -238,10 +238,10 @@ macro_rules! impl_from_ndarray_rustndarray {
                     bail!("{}", ErrorKind::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(
-                    Array::from_shape_vec(nd.shape().unwrap().clone(), nd.to_vec::<$type>()?)
-                        .unwrap(),
-                )
+                Ok(Array::from_shape_vec(
+                    nd.shape()?.clone(),
+                    nd.to_vec::<$type>()?,
+                )?)
             }
         }
 
@@ -252,10 +252,10 @@ macro_rules! impl_from_ndarray_rustndarray {
                     bail!("{}", ErrorKind::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(
-                    Array::from_shape_vec(nd.shape().unwrap().clone(), nd.to_vec::<$type>()?)
-                        .unwrap(),
-                )
+                Ok(Array::from_shape_vec(
+                    nd.shape()?.clone(),
+                    nd.to_vec::<$type>()?,
+                )?)
             }
         }
     };

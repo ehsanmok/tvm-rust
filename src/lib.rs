@@ -18,7 +18,7 @@
     unused_variables,
     unused_unsafe
 )]
-#![feature(try_from, fn_traits, unboxed_closures)]
+#![feature(try_from, try_trait, fn_traits, unboxed_closures)]
 
 #[macro_use]
 extern crate error_chain;

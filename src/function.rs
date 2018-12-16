@@ -46,8 +46,7 @@ lazy_static! {
 
 /// Returns a registered TVM function by name.
 pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
-    // ???
-    let name = CString::new(name).unwrap();
+    let name = CString::new(name).expect("function name should not contain any `0` byte");
     let mut handle = ptr::null_mut() as ts::TVMFunctionHandle;
     check_call!(ts::TVMFuncGetGlobal(
         name.as_ptr() as *const c_char,
@@ -85,12 +84,9 @@ impl Function {
 
     /// For a given function, it returns a function by name.
     pub fn get_function(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
-        GLOBAL_FUNCTION_NAMES
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|&&s| s == name)
-            .map(|nm| get_global_func(nm, is_global, allow_missing).unwrap())
+        let gnames = GLOBAL_FUNCTION_NAMES.lock().unwrap();
+        let fn_name = gnames.iter().find(|&&s| s == name)?;
+        get_global_func(fn_name, is_global, allow_missing)
     }
 
     /// Returns the underlying TVM function handle.

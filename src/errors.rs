@@ -1,7 +1,9 @@
 //! This module implements the TVM custom [`Error`] and [`Result`] types.
 
-// use std::option;
 use std::ffi;
+use std::option;
+
+use rust_ndarray;
 
 error_chain!{
     errors {
@@ -19,11 +21,20 @@ error_chain!{
             description("type mismatch!")
             display("expected type `{}`, but found `{}`", expected, found)
         }
+        NoneError {
+            description("called `unwrap()` on None")
+        }
 
     }
     foreign_links {
-        // NoneError(option::NoneError);
+        ShapeError(rust_ndarray::ShapeError);
         CStringNulError(ffi::NulError);
         CStringIntoString(ffi::IntoStringError);
+    }
+}
+
+impl From<option::NoneError> for Error {
+    fn from(err: option::NoneError) -> Self {
+        ErrorKind::NoneError.into()
     }
 }
