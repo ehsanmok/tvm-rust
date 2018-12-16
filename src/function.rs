@@ -130,7 +130,7 @@ impl Drop for Function {
 }
 
 /// Function builder in order to create and call functions.
-/// *Note:* TVM only accepts at most one return value.
+/// *Note:* Currently TVM functions accept at most one return value.
 #[derive(Debug, Clone, Default)]
 pub struct Builder<'a> {
     pub func: Option<Function>,
@@ -440,13 +440,13 @@ macro_rules! register_global_func {
 }
 
 /// Convenient macro for calling TVM packed functions by providing
-/// function identifier and the arguments. This macro output a `Result`
-/// for easier error handling in client side.
+/// function identifier and the arguments. This macro outputs a `Result`
+/// and let user to perform proper error handling.
 ///
 /// **Note**: this macro does *not* expect an outside mutable output. To
 /// set mutable output use [`set_output`] directly in the builder pattern.
 ///
-/// [`set_output`]:struct.Builder.html:#method.set_output
+/// [`set_output`]:function/struct.Builder.html#method.set_output
 ///
 /// ## Example
 ///

@@ -96,16 +96,11 @@ impl NDArray {
         unsafe { (*self.handle).ndim as usize }
     }
 
-    pub fn strides(&self) -> Option<Vec<usize>> {
+    pub fn strides(&self) -> Option<&[usize]> {
         unsafe {
-            (*self.handle).strides.as_mut().map(|pv| {
-                let sz = self.ndim();
-                let mut v: Vec<usize> = Vec::with_capacity(sz * mem::size_of::<usize>());
-                v.as_mut_ptr()
-                    .copy_from_nonoverlapping(pv as *mut _ as *const _, sz);
-                v.set_len(sz);
-                v
-            })
+            let sz = self.ndim() * mem::size_of::<usize>();
+            let slc = slice::from_raw_parts((*self.handle).strides as *const usize, sz);
+            Some(slc)
         }
     }
 
@@ -199,7 +194,7 @@ impl NDArray {
 
     /// Converts a Rust's ndarray to TVM NDArray.
     pub fn from_rust_ndarray<T: Num32 + Copy>(
-        rnd: &mut ArrayD<T>,
+        rnd: &ArrayD<T>,
         ctx: TVMContext,
         dtype: TVMType,
     ) -> Result<Self> {
@@ -330,7 +325,7 @@ mod tests {
     fn copy_wrong_dtype() {
         let mut shape = vec![4];
         let mut data = vec![1f32, 2., 3., 4.];
-        let ctx = TVMContext::cpu(0); // TVMContext::gpu(0);
+        let ctx = TVMContext::cpu(0);
         let mut nd_float = empty(&mut shape, ctx.clone(), TVMType::from("float"));
         nd_float.copy_from_buffer(&mut data);
         let empty_int = empty(&mut shape, ctx, TVMType::from("int"));
@@ -339,11 +334,11 @@ mod tests {
 
     #[test]
     fn rust_ndarray() {
-        let mut a = Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
+        let a = Array::from_shape_vec((2, 2), vec![1f32, 2., 3., 4.])
             .unwrap()
             .into_dyn();
         let nd =
-            NDArray::from_rust_ndarray(&mut a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
+            NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
         assert_eq!(nd.shape(), Some(vec![2, 2]));
         let rnd: ArrayD<f32> = ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));

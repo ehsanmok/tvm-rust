@@ -38,9 +38,9 @@ fn main() -> Result<(), Box<Error>> {
 
     let arr = Array::from_shape_vec((224, 224, 3), pixels)?;
     let arr: ArrayD<f32> = arr.permuted_axes([2, 0, 1]).into_dyn();
-    let mut arr = arr.insert_axis(Axis(0));
+    let arr = arr.insert_axis(Axis(0));
     // create input tensor from rust's ndarray
-    let input = NDArray::from_rust_ndarray(&mut arr, TVMContext::cpu(0), TVMType::from("float"))?;
+    let input = NDArray::from_rust_ndarray(&arr, TVMContext::cpu(0), TVMType::from("float"))?;
     println!("input size is {:?}", input.shape().unwrap());
     let graph = fs::read_to_string("deploy_graph.json")?;
     // load module
