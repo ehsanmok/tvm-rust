@@ -1,12 +1,29 @@
 //! This module implements the TVM custom [`Error`] and [`Result`] types.
 
-use custom_error::custom_error;
+// use std::option;
+use std::ffi;
 
-custom_error! {pub Error
-    EmptyArray = "Cannot convert from empty array",
-    NullHandle { name: String } = "Null handle for {name}",
-    NoFunction = "Function was not set in function::Builder.",
-    TypeMismatch { expected: String, found: String } = "Expected type {expected}, but found {found}",
+error_chain!{
+    errors {
+        EmptyArray {
+            description("cannot convert from empty array")
+        }
+        NullHandle(name: String) {
+            description("null handle")
+            display("requested `{}` handle is null", name)
+        }
+        NoFunction {
+            description("function was not set in `function::Builder`")
+        }
+        TypeMismatch(expected: String, found: String) {
+            description("type mismatch!")
+            display("expected type `{}`, but found `{}`", expected, found)
+        }
+
+    }
+    foreign_links {
+        // NoneError(option::NoneError);
+        CStringNulError(ffi::NulError);
+        CStringIntoString(ffi::IntoStringError);
+    }
 }
-
-pub type Result<T> = ::std::result::Result<T, Error>;

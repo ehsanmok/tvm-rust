@@ -11,6 +11,7 @@
 //! Checkout the `examples` repository for more details.
 
 #![crate_name = "tvm_frontend"]
+#![recursion_limit = "1024"]
 #![allow(
     non_camel_case_types,
     unused_assignments,
@@ -19,10 +20,11 @@
 )]
 #![feature(try_from, fn_traits, unboxed_closures)]
 
+#[macro_use]
+extern crate error_chain;
 extern crate tvm_sys as ts;
 #[macro_use]
 extern crate lazy_static;
-extern crate custom_error;
 extern crate ndarray as rust_ndarray;
 extern crate num_traits;
 
@@ -69,8 +71,7 @@ pub mod value;
 pub use bytearray::TVMByteArray;
 pub use context::TVMContext;
 pub use context::TVMDeviceType;
-pub use errors::Error;
-pub use errors::Result;
+pub use errors::*;
 pub use function::Function;
 pub use module::Module;
 pub use ndarray::{empty, NDArray};
@@ -97,8 +98,8 @@ mod tests {
 
     #[test]
     fn set_error() {
-        let err = Error::EmptyArray;
-        set_last_error(&err);
-        assert_eq!(get_last_error().trim(), err.to_string());
+        let err = ErrorKind::EmptyArray;
+        set_last_error(&err.into());
+        assert_eq!(get_last_error().trim(), ErrorKind::EmptyArray.to_string());
     }
 }

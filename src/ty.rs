@@ -71,21 +71,25 @@ impl<'a> Into<TypeCode> for i32 {
 
 impl Display for TypeCode {
     fn fmt(&self, f: &mut Formatter) -> fmt::Result {
-        match self {
-            TypeCode::kDLInt => write!(f, "int"),
-            TypeCode::kDLUInt => write!(f, "uint"),
-            TypeCode::kDLFloat => write!(f, "float"),
-            TypeCode::kHandle => write!(f, "handle"),
-            TypeCode::kNull => write!(f, "null"),
-            TypeCode::kTVMType => write!(f, "TVM type"),
-            TypeCode::kTVMContext => write!(f, "TVM context"),
-            TypeCode::kArrayHandle => write!(f, "Array handle"),
-            TypeCode::kNodeHandle => write!(f, "Node handle"),
-            TypeCode::kModuleHandle => write!(f, "Module handle"),
-            TypeCode::kFuncHandle => write!(f, "Function handle"),
-            TypeCode::kStr => write!(f, "string"),
-            TypeCode::kBytes => write!(f, "bytes"),
-        }
+        write!(
+            f,
+            "{}",
+            match self {
+                TypeCode::kDLInt => "int",
+                TypeCode::kDLUInt => "uint",
+                TypeCode::kDLFloat => "float",
+                TypeCode::kHandle => "handle",
+                TypeCode::kNull => "null",
+                TypeCode::kTVMType => "TVM type",
+                TypeCode::kTVMContext => "TVM context",
+                TypeCode::kArrayHandle => "Array handle",
+                TypeCode::kNodeHandle => "Node handle",
+                TypeCode::kModuleHandle => "Module handle",
+                TypeCode::kFuncHandle => "Function handle",
+                TypeCode::kStr => "string",
+                TypeCode::kBytes => "bytes",
+            }
+        )
     }
 }
 
@@ -143,7 +147,7 @@ impl_prim_type!(TVMByteArray, kBytes);
 /// Wrapper around underlying TVMType
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct TVMType {
-    pub inner: ts::TVMType, // (type) code: u8, bits: u8, lanes: u16
+    pub inner: ts::TVMType, // fields are code: u8, bits: u8, lanes: u16
 }
 
 impl TVMType {
@@ -193,7 +197,7 @@ impl Display for TVMType {
                 bits: 64,
                 lanes: 1,
             } => write!(f, "handle"),
-            _ => write!(f, "Unknown type"),
+            _ => write!(f, "unknown type"),
         }
     }
 }
@@ -246,7 +250,7 @@ impl<'a, 'b> From<&'b TVMType> for &'a str {
                 bits: 64,
                 lanes: 1,
             } => "handle",
-            _ => panic!("Undefined type"),
+            _ => panic!("undefined type"),
         }
     }
 }

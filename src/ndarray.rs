@@ -35,6 +35,7 @@ use rust_ndarray::{Array, ArrayD};
 use ts;
 
 use Error;
+use ErrorKind;
 use Result;
 use TVMByteArray;
 use TVMContext;
@@ -127,7 +128,7 @@ impl NDArray {
     /// ```
     pub fn to_vec<T>(&self) -> Result<Vec<T>> {
         if self.shape().is_none() {
-            return Err(Error::EmptyArray);
+            bail!("{}", ErrorKind::EmptyArray);
         }
         let earr = empty(&mut self.shape().unwrap(), TVMContext::cpu(0), self.dtype());
         let target = self.copy_to_ndarray(earr).unwrap();
@@ -172,10 +173,13 @@ impl NDArray {
     /// Copies the NDArray to another target NDArray.
     pub fn copy_to_ndarray(&self, target: NDArray) -> Result<NDArray> {
         if self.dtype() != target.dtype() {
-            return Err(Error::TypeMismatch {
-                expected: self.dtype().to_string(),
-                found: target.dtype().to_string(),
-            });
+            bail!(
+                "{}",
+                ErrorKind::TypeMismatch(
+                    format!("{}", self.dtype().to_string()),
+                    format!("{}", target.dtype().to_string()),
+                )
+            );
         }
         check_call!(ts::TVMArrayCopyFromTo(
             self.handle,
@@ -231,7 +235,7 @@ macro_rules! impl_from_ndarray_rustndarray {
             type Error = Error;
             fn try_from(nd: &NDArray) -> Result<ArrayD<$type>> {
                 if nd.shape().is_none() {
-                    return Err(Error::EmptyArray);
+                    bail!("{}", ErrorKind::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
                 Ok(
@@ -245,7 +249,7 @@ macro_rules! impl_from_ndarray_rustndarray {
             type Error = Error;
             fn try_from(nd: &mut NDArray) -> Result<ArrayD<$type>> {
                 if nd.shape().is_none() {
-                    return Err(Error::EmptyArray);
+                    bail!("{}", ErrorKind::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
                 Ok(

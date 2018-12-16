@@ -10,7 +10,7 @@ use ts;
 
 use function::Function;
 use internal_api;
-use Error;
+use ErrorKind;
 use Result;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
@@ -51,7 +51,7 @@ impl Module {
 
     /// Gets a function by name from a registered module.
     pub fn get_function(&self, name: &str, query_import: bool) -> Result<Function> {
-        let name = CString::new(name).expect("function name cannot be passed as C String");
+        let name = CString::new(name)?;
         let query_import = if query_import == true { 1 } else { 0 };
         let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
         check_call!(ts::TVMModGetFunction(
@@ -61,9 +61,7 @@ impl Module {
             &mut fhandle as *mut _
         ));
         if fhandle.is_null() {
-            return Err(Error::NullHandle {
-                name: name.into_string().unwrap(),
-            });
+            bail!(ErrorKind::NullHandle(format!("{}", name.into_string()?)))
         } else {
             mem::forget(name);
             Ok(Function::new(fhandle, false, false))
@@ -89,6 +87,8 @@ impl Module {
     /// Checks if a target device is enabled for a module.
     pub fn enabled(&self, target: String) -> bool {
         let func = internal_api::get_api("module._Enabled".to_owned());
+        // `unwrap` is safe here because if there is any error during the
+        // function call, it would occur in `tvm_call!`.
         let ret = tvm_call!(func, &target).unwrap();
         ret.to_int() != 0
     }

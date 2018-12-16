@@ -184,6 +184,8 @@ impl TVMContext {
     pub fn exist(&self) -> bool {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.0 as usize;
+        // `unwrap` is ok here because if there is any error,
+        // if would occure inside `tvm_call!`
         let ret = tvm_call!(func, &dt, &self.device_id, &0).unwrap();
         ret.to_int() != 0
     }
@@ -205,6 +207,8 @@ macro_rules! impl_dev_attrs {
             pub fn $attr_name(&self) -> usize {
                 let func = ::internal_api::get_api("_GetDeviceAttr".to_owned());
                 let dt = self.device_type.0 as usize;
+                // `unwrap` is ok here because if there is any error,
+                // if would occur in function call.
                 let ret = function::Builder::from(func)
                     .args(&[dt, self.device_id, $attr_kind])
                     .invoke()

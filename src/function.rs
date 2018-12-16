@@ -19,7 +19,7 @@ use ts;
 use ty::TypeCode;
 use value::TVMValue;
 use value::ValueKind;
-use Error;
+use ErrorKind;
 use Module;
 use Result;
 use TVMArgValue;
@@ -46,6 +46,7 @@ lazy_static! {
 
 /// Returns a registered TVM function by name.
 pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
+    // ???
     let name = CString::new(name).unwrap();
     let mut handle = ptr::null_mut() as ts::TVMFunctionHandle;
     check_call!(ts::TVMFuncGetGlobal(
@@ -69,7 +70,7 @@ pub struct Function {
     handle: ts::TVMFunctionHandle,
     // whether the registered function is global or not.
     is_global: bool,
-    // whether the function has been released or not.
+    // whether the function has been dropped from frontend or not.
     is_released: bool,
 }
 
@@ -222,7 +223,7 @@ impl<'a> FnOnce<((),)> for Builder<'a> {
     type Output = Result<TVMRetValue<'a>>;
     extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
         if self.func.is_none() {
-            return Err(Error::NoFunction);
+            bail!("{}", ErrorKind::NoFunction);
         }
         let mut ret_val = unsafe { mem::uninitialized::<ts::TVMValue>() };
         let mut ret_type_code = 0 as c_int;

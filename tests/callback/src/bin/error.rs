@@ -10,10 +10,10 @@ use tvm::*;
 fn main() {
     register_global_func! {
         fn error(_args: &[TVMArgValue]) -> Result<TVMRetValue> {
-            Err(Error::TypeMismatch {
-                expected: "i64".to_string(),
-                found: "f64".to_string(),
-            })
+            Err(ErrorKind::TypeMismatch(
+                format!("{}", "i64".to_string()),
+                format!("{}", "f64".to_string()),
+            ).into())
         }
     }
 
