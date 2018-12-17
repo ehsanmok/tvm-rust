@@ -37,6 +37,5 @@ fn main() {
             println!("panic occurred but can't get location information");
         }
     }));
-    let _result = panic::catch_unwind(move || registered.invoke());
-    // neither `AssertUnwindSafe` nor `assert!(result.is_err())` work!
+    panic::catch_unwind(move || registered.invoke());
 }

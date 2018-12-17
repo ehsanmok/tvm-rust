@@ -6,7 +6,7 @@ extern crate tvm_frontend as tvm;
 use tvm::*;
 
 fn main() {
-    fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue<'static>> {
+    fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
         let mut ret = 0;
         for arg in args.iter() {
             ret += arg.to_int();

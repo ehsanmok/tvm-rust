@@ -1,12 +1,14 @@
 //! This module implements [`TVMArgValue`] and [`TVMRetValue`] types and their conversions
-//! to other support TVMValue.
+//! to other support TVMValue. `TVMRetValue` is the owned version of `TVMArgValue`.
 //!
-//! # Example
+//! # Examples
 //!
 //! ```
 //! let a = 42i8;
-//! let b = TVMArgValue::from(&a);
-//! assert_eq!(b.to_int() as i8, a);
+//! let arg = TVMArgValue::from(&a);
+//! assert_eq!(arg.to_int() as i8, a);
+//! let ret = TVMRetValue::from(&a);
+//! assert_eq!(ret.to_int() as i8, a);
 //! ```
 
 use std::{
@@ -93,28 +95,6 @@ impl_prim_val!(bool, ValueKind::Int, v_int64, i64);
 impl_prim_val!(f64, ValueKind::Float, v_float64, f64);
 impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
 
-impl<'a> From<&'a [u8]> for TVMValue {
-    fn from(arg: &[u8]) -> TVMValue {
-        let arg = arg.to_owned();
-        let inner = ts::TVMValue {
-            v_handle: &arg as *const _ as *mut c_void,
-        };
-        mem::forget(arg);
-        Self::new(ValueKind::Handle, inner)
-    }
-}
-
-impl<'a> From<&'a mut [u8]> for TVMValue {
-    fn from(arg: &mut [u8]) -> TVMValue {
-        let arg = arg.to_owned();
-        let inner = ts::TVMValue {
-            v_handle: &arg as *const _ as *mut c_void,
-        };
-        mem::forget(arg);
-        Self::new(ValueKind::Handle, inner)
-    }
-}
-
 impl<'a> From<&'a str> for TVMValue {
     fn from(arg: &str) -> TVMValue {
         let arg = CString::new(arg).unwrap();
@@ -137,9 +117,9 @@ impl<'a> From<&'a String> for TVMValue {
     }
 }
 
-impl<'a> From<&'a mut String> for TVMValue {
-    fn from(arg: &mut String) -> TVMValue {
-        let arg = CString::new(arg.as_bytes()).unwrap();
+impl<'a> From<&'a CString> for TVMValue {
+    fn from(arg: &CString) -> TVMValue {
+        let arg = arg.to_owned();
         let inner = ts::TVMValue {
             v_str: arg.as_ptr() as *const c_char,
         };
@@ -148,77 +128,33 @@ impl<'a> From<&'a mut String> for TVMValue {
     }
 }
 
-impl<'a> From<&'a CString> for TVMValue {
-    fn from(arg: &CString) -> TVMValue {
+impl<'a> From<&'a [u8]> for TVMValue {
+    fn from(arg: &[u8]) -> TVMValue {
+        let arg = arg.to_owned();
         let inner = ts::TVMValue {
-            v_str: arg.as_ptr() as *const c_char,
+            v_handle: &arg as *const _ as *mut c_void,
         };
-        Self::new(ValueKind::Str, inner)
-    }
-}
-
-impl<'a> From<&'a mut CString> for TVMValue {
-    fn from(arg: &mut CString) -> TVMValue {
-        let inner = ts::TVMValue {
-            v_str: arg.as_ptr() as *const c_char,
-        };
-        Self::new(ValueKind::Str, inner)
-    }
-}
-
-impl<'a> From<&'a Module> for TVMValue {
-    fn from(arg: &Module) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arg.handle as *mut _ as *mut c_void,
-        };
+        mem::forget(arg);
         Self::new(ValueKind::Handle, inner)
     }
 }
 
-impl<'a> From<&'a mut Module> for TVMValue {
-    fn from(arg: &mut Module) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arg.handle as *mut _ as *mut c_void,
-        };
-        Self::new(ValueKind::Handle, inner)
+macro_rules! impl_tvm_val_from_handle {
+    ($($ty:ty),+) => {
+        $(
+            impl<'a> From<&'a $ty> for TVMValue {
+                fn from(arg: &$ty) -> Self {
+                    let inner = ts::TVMValue {
+                        v_handle: arg.handle as *mut _ as *mut c_void,
+                    };
+                    Self::new(ValueKind::Handle, inner)
+                }
+            }
+        )+
     }
 }
 
-impl<'a> From<&'a Function> for TVMValue {
-    fn from(arg: &Function) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arg.handle as *mut _ as *mut c_void,
-        };
-        Self::new(ValueKind::Handle, inner)
-    }
-}
-
-impl<'a> From<&'a mut Function> for TVMValue {
-    fn from(arg: &mut Function) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arg.handle as *mut _ as *mut c_void,
-        };
-        Self::new(ValueKind::Handle, inner)
-    }
-}
-
-impl<'a> From<&'a NDArray> for TVMValue {
-    fn from(arr: &NDArray) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arr.handle as *mut _ as *mut c_void,
-        };
-        Self::new(ValueKind::Handle, inner)
-    }
-}
-
-impl<'a> From<&'a mut NDArray> for TVMValue {
-    fn from(arr: &mut NDArray) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: arr.handle as *mut _ as *mut c_void,
-        };
-        Self::new(ValueKind::Handle, inner)
-    }
-}
+impl_tvm_val_from_handle!(Module, Function, NDArray);
 
 impl<'a> From<&'a TVMType> for TVMValue {
     fn from(ty: &TVMType) -> Self {
@@ -227,24 +163,8 @@ impl<'a> From<&'a TVMType> for TVMValue {
     }
 }
 
-impl<'a> From<&'a mut TVMType> for TVMValue {
-    fn from(ty: &mut TVMType) -> Self {
-        let inner = ts::TVMValue { v_type: ty.inner };
-        Self::new(ValueKind::Type, inner)
-    }
-}
-
 impl<'a> From<&'a TVMContext> for TVMValue {
     fn from(ctx: &TVMContext) -> Self {
-        let inner = ts::TVMValue {
-            v_ctx: ctx.clone().into(),
-        };
-        Self::new(ValueKind::Context, inner)
-    }
-}
-
-impl<'a> From<&'a mut TVMContext> for TVMValue {
-    fn from(ctx: &mut TVMContext) -> Self {
         let inner = ts::TVMValue {
             v_ctx: ctx.clone().into(),
         };
@@ -261,26 +181,8 @@ impl<'a> From<&'a TVMDeviceType> for TVMValue {
     }
 }
 
-impl<'a> From<&'a mut TVMDeviceType> for TVMValue {
-    fn from(dev: &mut TVMDeviceType) -> Self {
-        let inner = ts::TVMValue {
-            v_int64: dev.0 as i64,
-        };
-        Self::new(ValueKind::Int, inner)
-    }
-}
-
 impl<'a> From<&'a TVMByteArray> for TVMValue {
     fn from(barr: &TVMByteArray) -> Self {
-        let inner = ts::TVMValue {
-            v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
-        };
-        Self::new(ValueKind::Bytes, inner)
-    }
-}
-
-impl<'a> From<&'a mut TVMByteArray> for TVMValue {
-    fn from(barr: &mut TVMByteArray) -> Self {
         let inner = ts::TVMValue {
             v_handle: &barr.inner as *const ts::TVMByteArray as *mut c_void,
         };
@@ -314,8 +216,8 @@ impl DerefMut for TVMValue {
     }
 }
 
-/// This type is needed for passing supported values as arguments to
-/// a [`function::Builder`]. Checkout the methods and from conversions.
+/// This type is needed for passing supported values as arguments to [`tvm_call!`]
+/// or [`function::Builder`]. Checkout the methods and from conversions.
 ///
 /// ## Example
 ///
@@ -341,98 +243,6 @@ impl<'a> TVMArgValue<'a> {
             _lifetime: PhantomData,
         }
     }
-
-    pub fn to_int(&self) -> i64 {
-        if self.type_code != TypeCode::kDLInt && self.type_code != TypeCode::kNull {
-            panic!("Requires i64 or NULL, but found {:?}", self.type_code);
-        }
-        unsafe { self.value.inner.v_int64 }
-    }
-
-    pub fn to_float(&self) -> f64 {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kDLFloat,
-            "Requires f64, but found {:?}",
-            self.type_code
-        );
-        unsafe { self.value.inner.v_float64 }
-    }
-
-    pub fn to_bytearray(&self) -> TVMByteArray {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kBytes,
-            "Requires byte array, but found {:?}",
-            self.type_code
-        );
-        unsafe {
-            let barr_ptr =
-                mem::transmute::<*mut c_void, *mut ts::TVMByteArray>(self.value.inner.v_handle);
-            TVMByteArray::new(*barr_ptr)
-        }
-    }
-
-    pub fn to_module(&self) -> Module {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kModuleHandle,
-            "Requires module handle, but found {:?}",
-            self.type_code
-        );
-        let module_handle = unsafe { self.value.inner.v_handle };
-        Module::new(module_handle, false, None)
-    }
-
-    pub fn to_string(&self) -> String {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kStr,
-            "Requires string, but found {:?}",
-            self.type_code
-        );
-        let ret_str = unsafe {
-            match CStr::from_ptr(self.value.inner.v_str).to_str() {
-                Ok(s) => s,
-                Err(_) => "Invalid UTF-8 message",
-            }
-        };
-        ret_str.to_string()
-    }
-
-    pub fn to_ndarray(&self) -> NDArray {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kArrayHandle,
-            "Requires Array handle, but found {:?}",
-            self.type_code
-        );
-        let handle = unsafe { self.value.inner.v_handle };
-        let arr_handle = unsafe { mem::transmute::<*mut c_void, ts::TVMArrayHandle>(handle) };
-        NDArray::new(arr_handle, true)
-    }
-
-    pub fn to_type(&self) -> TVMType {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kTVMType,
-            "Requires TVMType, but found {:?}",
-            self.type_code
-        );
-        let ty = unsafe { self.value.inner.v_type };
-        TVMType::from(ty)
-    }
-
-    pub fn to_ctx(&self) -> TVMContext {
-        assert_eq!(
-            self.type_code,
-            TypeCode::kTVMContext,
-            "Requires TVMContext, but found {:?}",
-            self.type_code
-        );
-        let ctx = unsafe { self.value.inner.v_ctx };
-        TVMContext::from(ctx)
-    }
 }
 
 /// Main way to create a TVMArgValue from suported Rust's values.
@@ -446,8 +256,148 @@ where
     }
 }
 
-/// TVMRetValue is an alias of TVMArgValue.
-pub type TVMRetValue<'a> = TVMArgValue<'a>;
+/// TVMRetValue is an owned TVMArgValue.
+///
+/// ## Example
+///
+/// ```
+/// let ctx = TVMContext::gpu(0);
+/// let arg = TVMRetValue::from(&ctx);
+/// assert_eq!(arg.to_ctx(), ctx);
+/// ```
+#[derive(Debug, Clone)]
+pub struct TVMRetValue {
+    pub value: TVMValue,
+    pub type_code: TypeCode,
+}
+
+impl TVMRetValue {
+    pub(crate) fn new(value: TVMValue, type_code: TypeCode) -> Self {
+        Self { value, type_code }
+    }
+}
+
+impl<'b, T: 'b + ?Sized> From<&'b T> for TVMRetValue
+where
+    TVMValue: From<&'b T>,
+    TypeCode: From<&'b T>,
+{
+    fn from(arg: &'b T) -> Self {
+        TVMRetValue::new(TVMValue::from(arg), TypeCode::from(arg))
+    }
+}
+
+macro_rules! impl_to_methods {
+    ($ty:ty) => {
+        pub fn to_int(&self) -> i64 {
+            if self.type_code != TypeCode::kDLInt && self.type_code != TypeCode::kNull {
+                panic!("Requires i64 or NULL, but found {:?}", self.type_code);
+            }
+
+            unsafe { self.value.inner.v_int64 }
+        }
+
+        pub fn to_float(&self) -> f64 {
+            assert_eq!(
+                self.type_code,
+                TypeCode::kDLFloat,
+                "Requires f64, but found {:?}",
+                self.type_code
+            );
+            unsafe { self.value.inner.v_float64 }
+        }
+
+        pub fn to_bytearray(&self) -> TVMByteArray {
+            assert_eq!(
+                self.type_code,
+                TypeCode::kBytes,
+                "Requires byte array, but found {:?}",
+                self.type_code
+            );
+            unsafe {
+                let barr_ptr =
+                    mem::transmute::<*mut c_void, *mut ts::TVMByteArray>(self.value.inner.v_handle);
+                TVMByteArray::new(*barr_ptr)
+            }
+        }
+
+        pub fn to_module(&self) -> Module {
+            assert_eq!(
+                self.type_code,
+                TypeCode::kModuleHandle,
+                "Requires module handle, but found {:?}",
+                self.type_code
+            );
+            let module_handle = unsafe { self.value.inner.v_handle };
+            Module::new(module_handle, false, None)
+        }
+
+        pub fn to_string(&self) -> String {
+            assert_eq!(
+                self.type_code,
+                TypeCode::kStr,
+                "Requires string, but found {:?}",
+                self.type_code
+            );
+            let ret_str = unsafe {
+                match CStr::from_ptr(self.value.inner.v_str).to_str() {
+                    Ok(s) => s,
+                    Err(_) => "Invalid UTF-8 message",
+                }
+            };
+            ret_str.to_string()
+        }
+
+        pub fn to_ndarray(&self) -> NDArray {
+            assert_eq!(
+                self.type_code,
+                TypeCode::kArrayHandle,
+                "Requires Array handle, but found {:?}",
+                self.type_code
+            );
+            let handle = unsafe { self.value.inner.v_handle };
+            let arr_handle = unsafe { mem::transmute::<*mut c_void, ts::TVMArrayHandle>(handle) };
+            NDArray::new(arr_handle, true)
+        }
+
+        pub fn to_type(&self) -> TVMType {
+            assert_eq!(
+                self.type_code,
+                TypeCode::kTVMType,
+                "Requires TVMType, but found {:?}",
+                self.type_code
+            );
+            let ty = unsafe { self.value.inner.v_type };
+            TVMType::from(ty)
+        }
+
+        pub fn to_ctx(&self) -> TVMContext {
+            assert_eq!(
+                self.type_code,
+                TypeCode::kTVMContext,
+                "Requires TVMContext, but found {:?}",
+                self.type_code
+            );
+            let ctx = unsafe { self.value.inner.v_ctx };
+            TVMContext::from(ctx)
+        }
+    };
+
+    (refnc $ty:ty) => {
+        impl<'a> $ty {
+            impl_to_methods!($ty);
+        }
+    };
+
+    (owned $ty:ty) => {
+        impl $ty {
+            impl_to_methods!($ty);
+        }
+    }
+}
+
+impl_to_methods!(refnc TVMArgValue<'a>);
+impl_to_methods!(owned TVMRetValue);
 
 #[cfg(test)]
 mod tests {
@@ -455,37 +405,42 @@ mod tests {
 
     #[test]
     fn numeric() {
-        let a = 42i8;
-        let tvm_a = TVMArgValue::from(&a);
-        assert_eq!(tvm_a.to_int() as i8, a);
-        let a = 42i16;
-        let tvm_a = TVMArgValue::from(&a);
-        assert_eq!(tvm_a.to_int() as i16, a);
-        let a = 42i32;
-        let tvm_a = TVMArgValue::from(&a);
-        assert_eq!(tvm_a.to_int() as i32, a);
-        let a = 42i64;
-        let tvm_a = TVMArgValue::from(&a);
-        assert_eq!(tvm_a.to_int(), a);
-        let b = 42f32;
-        let tvm_b = TVMArgValue::from(&b);
-        assert_eq!(tvm_b.to_float() as f32, b);
-        let b = 42f64;
-        let tvm_b = TVMArgValue::from(&b);
-        assert_eq!(tvm_b.to_float(), b);
+        macro_rules! arg_ret_tests {
+            ($v:expr; ints $($ty:ty),+) => {{
+                $(
+                    let v = $v as $ty;
+                    let a = TVMArgValue::from(&v);
+                    assert_eq!(a.to_int() as $ty, v);
+                    let b = TVMRetValue::from(&v);
+                    assert_eq!(b.to_int() as $ty, v);
+                )+
+            }};
+            ($v:expr; floats $($ty:ty),+) => {{
+                $(
+                    let v = $v as $ty;
+                    let a = TVMArgValue::from(&v);
+                    assert_eq!(a.to_float() as $ty, v);
+                    let b = TVMRetValue::from(&v);
+                    assert_eq!(b.to_float() as $ty, v);
+                )+
+            }};
+        }
+
+        arg_ret_tests!(42; ints i8, i16, i32, i64);
+        arg_ret_tests!(42; floats f32, f64);
     }
 
     #[test]
     fn bytearray() {
         let v = CString::new(b"hello".to_vec()).unwrap();
         let v = v.into_bytes();
-        let tvm = TVMArgValue::from(&v[..]);
+        let tvm = TVMRetValue::from(&v[..]);
         assert_eq!(
             tvm.to_bytearray().data(),
             v.iter().map(|e| *e as i8).collect::<Vec<i8>>()
         );
         let w = vec![1u8, 2, 3, 4, 5];
-        let tvm = TVMArgValue::from(&w[..]);
+        let tvm = TVMRetValue::from(&w[..]);
         assert_eq!(
             tvm.to_bytearray().data(),
             w.iter().map(|e| *e as i8).collect::<Vec<i8>>()
@@ -495,24 +450,24 @@ mod tests {
     #[test]
     fn string() {
         let s = "hello";
-        let tvm_arg = TVMArgValue::from(s);
+        let tvm_arg = TVMRetValue::from(s);
         assert_eq!(tvm_arg.to_string(), s.to_string());
         let s = "hello".to_string();
-        let tvm_arg = TVMArgValue::from(&s);
+        let tvm_arg = TVMRetValue::from(&s);
         assert_eq!(tvm_arg.to_string(), s);
     }
 
     #[test]
     fn ty() {
         let t = TVMType::from("int");
-        let tvm = TVMArgValue::from(&t);
+        let tvm = TVMRetValue::from(&t);
         assert_eq!(tvm.to_type(), t);
     }
 
     #[test]
     fn ctx() {
         let c = TVMContext::from("gpu");
-        let tvm = TVMArgValue::from(&c);
+        let tvm = TVMRetValue::from(&c);
         assert_eq!(tvm.to_ctx(), c);
     }
 }

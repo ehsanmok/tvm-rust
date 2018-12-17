@@ -132,14 +132,14 @@ impl Drop for Function {
 pub struct Builder<'a> {
     pub func: Option<Function>,
     pub arg_buf: Option<Box<[TVMArgValue<'a>]>>,
-    pub ret_buf: Option<Box<[TVMRetValue<'a>]>>,
+    pub ret_buf: Option<Box<[TVMRetValue]>>,
 }
 
 impl<'a> Builder<'a> {
     pub fn new(
         func: Option<Function>,
         arg_buf: Option<Box<[TVMArgValue<'a>]>>,
-        ret_buf: Option<Box<[TVMRetValue<'a>]>>,
+        ret_buf: Option<Box<[TVMRetValue]>>,
     ) -> Self {
         Self {
             func,
@@ -204,19 +204,19 @@ impl<'a> Builder<'a> {
                 new_buf.push(tvm_ret);
                 new_buf.into_boxed_slice()
             });
-            self.arg_buf = new_ret_buf;
+            self.ret_buf = new_ret_buf;
         }
         self
     }
 
     /// Calls the function that created from builder.
-    pub fn invoke(&mut self) -> Result<TVMRetValue<'a>> {
+    pub fn invoke(&mut self) -> Result<TVMRetValue> {
         self.clone()(())
     }
 }
 
 impl<'a> FnOnce<((),)> for Builder<'a> {
-    type Output = Result<TVMRetValue<'a>>;
+    type Output = Result<TVMRetValue>;
     extern "rust-call" fn call_once(self, _: ((),)) -> Self::Output {
         if self.func.is_none() {
             bail!("{}", ErrorKind::FunctionNotFound);
@@ -298,8 +298,7 @@ unsafe extern "C" fn tvm_callback(
     // due to unsafe mem::uninitialized rustc warning about unused `value` and `tcode`.
     let mut _value = mem::uninitialized::<ts::TVMValue>();
     let mut _tcode = mem::uninitialized::<c_int>();
-    let rust_fn =
-        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle);
+    let rust_fn = mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue>>(fhandle);
     for i in 0..len {
         _value = args_list[i];
         _tcode = type_codes_list[i];
@@ -334,14 +333,13 @@ unsafe extern "C" fn tvm_callback(
 }
 
 unsafe extern "C" fn tvm_callback_finalizer(fhandle: *mut c_void) {
-    let rust_fn =
-        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle);
+    let rust_fn = mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue>>(fhandle);
     mem::drop(rust_fn);
 }
 
-fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>) -> Function {
+fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue>) -> Function {
     let mut fhandle = ptr::null_mut() as ts::TVMFunctionHandle;
-    let resource_handle = f as *mut fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>;
+    let resource_handle = f as *mut fn(&[TVMArgValue]) -> Result<TVMRetValue>;
     check_call!(ts::TVMFuncCreateFromCFunc(
         Some(tvm_callback),
         resource_handle as *mut c_void,
@@ -378,7 +376,7 @@ fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>) ->
 /// assert_eq!(registered.invoke().unwrap().to_int(), 60);
 /// ```
 pub fn register(
-    f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>,
+    f: fn(&[TVMArgValue]) -> Result<TVMRetValue>,
     name: String,
     override_: bool,
 ) -> Result<()> {
@@ -426,7 +424,7 @@ macro_rules! register_global_func {
         }
     } => {{
         $(#[$m])*
-        fn $fn_name($args: &[TVMArgValue]) -> Result<TVMRetValue<'static>> {
+        fn $fn_name($args: &[TVMArgValue]) -> Result<TVMRetValue> {
             $($code)*
         }
 
