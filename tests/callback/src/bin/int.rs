@@ -17,7 +17,7 @@ fn main() {
     tvm::function::register(sum, "mysum".to_owned(), false).unwrap();
 
     let mut registered = function::Builder::default();
-    registered.get_function("mysum", true, false);
+    registered.get_function("mysum", true);
     assert!(registered.func.is_some());
     registered.args(&[10, 20, 30]);
     assert_eq!(registered.invoke().unwrap().to_int(), 60);

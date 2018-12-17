@@ -33,9 +33,6 @@ fn main() {
     arr.copy_from_buffer(data.as_mut_slice());
 
     let mut registered = function::Builder::default();
-    registered
-        .get_function("sum", true, false)
-        .arg(&arr)
-        .arg(&arr);
+    registered.get_function("sum", true).arg(&arr).arg(&arr);
     assert_eq!(registered.invoke().unwrap().to_float(), 14f64);
 }

@@ -98,13 +98,13 @@ impl Display for TypeCode {
 macro_rules! impl_prim_type {
     ($type:ty, $variant:ident) => {
         impl<'a> From<&'a $type> for TypeCode {
-            fn from(arg: &$type) -> Self {
+            fn from(_arg: &$type) -> Self {
                 TypeCode::$variant
             }
         }
 
         impl<'a> From<&'a mut $type> for TypeCode {
-            fn from(arg: &mut $type) -> Self {
+            fn from(_arg: &mut $type) -> Self {
                 TypeCode::$variant
             }
         }

@@ -18,7 +18,7 @@ fn main() {
     }
 
     let mut registered = function::Builder::default();
-    registered.get_function("error", true, false);
+    registered.get_function("error", true);
     assert!(registered.func.is_some());
     registered.args(&[10, 20]);
 

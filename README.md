@@ -108,7 +108,7 @@ fn main() {
 
     let mut registered = function::Builder::default();
     registered
-        .get_function("sum", true, false)
+        .get_function("sum", true)
         .arg(&arr)
         .arg(&arr);
     assert_eq!(registered.invoke().unwrap().to_float(), 14f64);

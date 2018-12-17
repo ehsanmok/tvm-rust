@@ -95,14 +95,9 @@ impl_prim_val!(f32, ValueKind::Float, v_float64, f64);
 
 impl<'a> From<&'a [u8]> for TVMValue {
     fn from(arg: &[u8]) -> TVMValue {
-        let len = arg.len();
         let arg = arg.to_owned();
-        let arr = ts::TVMByteArray {
-            data: arg.as_ptr() as *mut c_char,
-            size: len,
-        };
         let inner = ts::TVMValue {
-            v_handle: &arr as *const _ as *mut c_void,
+            v_handle: &arg as *const _ as *mut c_void,
         };
         mem::forget(arg);
         Self::new(ValueKind::Handle, inner)
@@ -111,12 +106,7 @@ impl<'a> From<&'a [u8]> for TVMValue {
 
 impl<'a> From<&'a mut [u8]> for TVMValue {
     fn from(arg: &mut [u8]) -> TVMValue {
-        let len = arg.len();
         let arg = arg.to_owned();
-        let arr = ts::TVMByteArray {
-            data: arg.as_ptr() as *mut c_char,
-            size: len as usize,
-        };
         let inner = ts::TVMValue {
             v_handle: &arg as *const _ as *mut c_void,
         };
@@ -401,7 +391,6 @@ impl<'a> TVMArgValue<'a> {
             "Requires string, but found {:?}",
             self.type_code
         );
-        let sptr: *const c_char = unsafe { self.value.inner.v_str };
         let ret_str = unsafe {
             match CStr::from_ptr(self.value.inner.v_str).to_str() {
                 Ok(s) => s,

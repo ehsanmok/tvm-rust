@@ -12,12 +12,7 @@
 
 #![crate_name = "tvm_frontend"]
 #![recursion_limit = "1024"]
-#![allow(
-    non_camel_case_types,
-    unused_assignments,
-    unused_variables,
-    unused_unsafe
-)]
+#![allow(non_camel_case_types, unused_unsafe)]
 #![feature(try_from, try_trait, fn_traits, unboxed_closures)]
 
 #[macro_use]

@@ -44,7 +44,7 @@ lazy_static! {
 }
 
 /// Returns a registered TVM function by name.
-pub fn get_global_func(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
+pub fn get_global_func(name: &str, is_global: bool) -> Option<Function> {
     let name = CString::new(name).expect("function name should not contain any `0` byte");
     let mut handle = ptr::null_mut() as ts::TVMFunctionHandle;
     check_call!(ts::TVMFuncGetGlobal(
@@ -82,10 +82,10 @@ impl Function {
     }
 
     /// For a given function, it returns a function by name.
-    pub fn get_function(name: &str, is_global: bool, allow_missing: bool) -> Option<Function> {
+    pub fn get_function(name: &str, is_global: bool) -> Option<Function> {
         let gnames = GLOBAL_FUNCTION_NAMES.lock().unwrap();
         let fn_name = gnames.iter().find(|&&s| s == name)?;
-        get_global_func(fn_name, is_global, allow_missing)
+        get_global_func(fn_name, is_global)
     }
 
     /// Returns the underlying TVM function handle.
@@ -102,6 +102,7 @@ impl Function {
     }
 }
 
+// TODO: make clone automatic and free of `is_global` change.
 impl Clone for Function {
     fn clone(&self) -> Function {
         if !self.is_released {
@@ -147,8 +148,8 @@ impl<'a> Builder<'a> {
         }
     }
 
-    pub fn get_function(&mut self, name: &str, is_global: bool, allow_missing: bool) -> &mut Self {
-        self.func = Function::get_function(name, is_global, allow_missing);
+    pub fn get_function(&mut self, name: &str, is_global: bool) -> &mut Self {
+        self.func = Function::get_function(name, is_global);
         self
     }
 
@@ -198,7 +199,7 @@ impl<'a> Builder<'a> {
         if self.ret_buf.is_none() {
             self.ret_buf = Some(Box::new([tvm_ret]));
         } else {
-            let new_ret_buf = self.ret_buf.take().map(|bbuf| {
+            let new_ret_buf = self.ret_buf.take().map(|_| {
                 let mut new_buf = Vec::with_capacity(1);
                 new_buf.push(tvm_ret);
                 new_buf.into_boxed_slice()
@@ -290,55 +291,51 @@ unsafe extern "C" fn tvm_callback(
     ret: ts::TVMRetValueHandle,
     fhandle: *mut c_void,
 ) -> c_int {
-    unsafe {
-        let len = num_args as usize;
-        let args_list = slice::from_raw_parts_mut(args, len);
-        let type_codes_list = slice::from_raw_parts_mut(type_codes, len);
-        let mut local_args: Vec<TVMArgValue> = Vec::new();
-        let mut value = mem::uninitialized::<ts::TVMValue>();
-        let mut tcode = mem::uninitialized::<c_int>();
-        let rust_fn = mem::transmute::<
-            *mut c_void,
-            fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>,
-        >(fhandle);
-        for i in 0..len {
-            value = args_list[i];
-            tcode = type_codes_list[i];
-            if tcode == TypeCode::kNodeHandle as c_int
-                || tcode == TypeCode::kFuncHandle as c_int
-                || tcode == TypeCode::kModuleHandle as c_int
-            {
-                check_call!(ts::TVMCbArgToReturn(&mut value as *mut _, tcode));
-            }
-            local_args.push(TVMArgValue::new(
-                TVMValue::new(ValueKind::Handle, value),
-                tcode.into(),
-            ));
+    let len = num_args as usize;
+    let args_list = slice::from_raw_parts_mut(args, len);
+    let type_codes_list = slice::from_raw_parts_mut(type_codes, len);
+    let mut local_args: Vec<TVMArgValue> = Vec::new();
+    // due to unsafe mem::uninitialized rustc warning about unused `value` and `tcode`.
+    let mut _value = mem::uninitialized::<ts::TVMValue>();
+    let mut _tcode = mem::uninitialized::<c_int>();
+    let rust_fn =
+        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle);
+    for i in 0..len {
+        _value = args_list[i];
+        _tcode = type_codes_list[i];
+        if _tcode == TypeCode::kNodeHandle as c_int
+            || _tcode == TypeCode::kFuncHandle as c_int
+            || _tcode == TypeCode::kModuleHandle as c_int
+        {
+            check_call!(ts::TVMCbArgToReturn(&mut _value as *mut _, _tcode));
         }
-
-        let rv = match rust_fn(local_args.as_slice()) {
-            Ok(v) => v,
-            Err(msg) => {
-                ::set_last_error(&msg);
-                return -1;
-            }
-        };
-        let mut ret_val = *rv.value;
-        let mut ret_type_code = rv.type_code as c_int;
-        check_call!(ts::TVMCFuncSetReturn(
-            ret,
-            &mut ret_val as *mut _,
-            &mut ret_type_code as *mut _,
-            1 as c_int
+        local_args.push(TVMArgValue::new(
+            TVMValue::new(ValueKind::Handle, _value),
+            _tcode.into(),
         ));
     }
+
+    let rv = match rust_fn(local_args.as_slice()) {
+        Ok(v) => v,
+        Err(msg) => {
+            ::set_last_error(&msg);
+            return -1;
+        }
+    };
+    let mut ret_val = *rv.value;
+    let mut ret_type_code = rv.type_code as c_int;
+    check_call!(ts::TVMCFuncSetReturn(
+        ret,
+        &mut ret_val as *mut _,
+        &mut ret_type_code as *mut _,
+        1 as c_int
+    ));
     0
 }
 
 unsafe extern "C" fn tvm_callback_finalizer(fhandle: *mut c_void) {
-    let rust_fn = unsafe {
-        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle)
-    };
+    let rust_fn =
+        mem::transmute::<*mut c_void, fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>>(fhandle);
     mem::drop(rust_fn);
 }
 
@@ -375,7 +372,7 @@ fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>) ->
 ///
 /// tvm::function::register(sum, "mysum".to_owned(), false).unwrap();
 /// let mut registered = function::Builder::default();
-/// registered.get_function("mysum", true, false);
+/// registered.get_function("mysum", true);
 /// assert!(registered.func.is_some());
 /// registered.args(&[10, 20, 30]);
 /// assert_eq!(registered.invoke().unwrap().to_int(), 60);
@@ -415,7 +412,7 @@ pub fn register(
 /// }
 ///
 /// let mut registered = function::Builder::default();
-/// registered.get_function("sum", true, false);
+/// registered.get_function("sum", true);
 /// assert!(registered.func.is_some());
 /// registered.args(&[10f64, 20f64, 30f64]);
 /// assert_eq!(registered.invoke().unwrap().to_float(), 60f64);
@@ -488,14 +485,14 @@ mod tests {
 
     #[test]
     fn get_fn() {
-        assert!(Function::get_function("tvm.graph_runtime.remote_create", true, false).is_some());
-        assert!(Function::get_function("does not exists!", false, false).is_none());
+        assert!(Function::get_function("tvm.graph_runtime.remote_create", true).is_some());
+        assert!(Function::get_function("does not exists!", false).is_none());
     }
 
     #[test]
     fn provide_args() {
         let mut func = Builder::default();
-        func.get_function("tvm.graph_runtime.remote_create", true, false)
+        func.get_function("tvm.graph_runtime.remote_create", true)
             .args(&[10, 20])
             .arg(&"test".to_owned());
         assert!(func.arg_buf.is_some());

@@ -3,11 +3,13 @@ extern crate image;
 extern crate ndarray;
 extern crate tvm_frontend as tvm;
 
-use std::collections::HashMap;
-use std::error::Error;
-use std::fs::{self, File};
-use std::path::Path;
-use std::result::Result;
+use std::{
+    collections::HashMap,
+    error::Error,
+    fs::{self, File},
+    path::Path,
+    result::Result,
+};
 
 use image::{FilterType, GenericImageView};
 use ndarray::{Array, ArrayD, Axis};
@@ -46,8 +48,7 @@ fn main() -> Result<(), Box<Error>> {
     // load module
     let lib = Module::load(&Path::new("deploy_lib.so"))?;
     // get the global TVM graph runtime function
-    let runtime_create_fn =
-        Function::get_function("tvm.graph_runtime.create", true, false).unwrap();
+    let runtime_create_fn = Function::get_function("tvm.graph_runtime.create", true).unwrap();
 
     let runtime_create_fn_ret = tvm_call!(
         runtime_create_fn,
