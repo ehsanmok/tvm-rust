@@ -1,11 +1,8 @@
-/target
+target
 **/*.rs.bk
 Cargo.lock
-/tvm-sys/target/
 /tvm-sys/src/bindgen.rs
 /tests/basics/add_*
-/tests/callback/target
-/examples/resnet/target
 /examples/resnet/deploy_*
 /examples/resnet/*.png
 /examples/resnet/synset.*
