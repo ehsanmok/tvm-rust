@@ -1,10 +1,12 @@
 //! Provides [`Module`] type and methods for working with runtime TVM modules.
 
-use std::ffi::CString;
-use std::mem;
-use std::os::raw::{c_char, c_int};
-use std::path::Path;
-use std::ptr;
+use std::{
+    ffi::CString,
+    mem,
+    os::raw::{c_char, c_int},
+    path::Path,
+    ptr,
+};
 
 use ts;
 

@@ -28,8 +28,10 @@ extern crate lazy_static;
 extern crate ndarray as rust_ndarray;
 extern crate num_traits;
 
-use std::ffi::{CStr, CString};
-use std::str;
+use std::{
+    ffi::{CStr, CString},
+    str,
+};
 
 // Macro to check the return call to TVM runtime shared library
 macro_rules! check_call {
@@ -69,15 +71,13 @@ pub mod ty;
 pub mod value;
 
 pub use bytearray::TVMByteArray;
-pub use context::TVMContext;
-pub use context::TVMDeviceType;
+pub use context::{TVMContext, TVMDeviceType};
 pub use errors::*;
 pub use function::Function;
 pub use module::Module;
 pub use ndarray::{empty, NDArray};
 pub use ty::TVMType;
-pub use value::TVMArgValue;
-pub use value::TVMRetValue;
+pub use value::{TVMArgValue, TVMRetValue};
 
 /// Outputs the current TVM version
 pub fn version() -> &'static str {

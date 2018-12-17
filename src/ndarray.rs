@@ -23,11 +23,7 @@
 //! [`copy_from_buffer`]:struct.NDArray.html#method.copy_from_buffer
 //! [`copy_to_ctx`]:struct.NDArray.html#method.copy_to_ctx
 
-use std::convert::TryFrom;
-use std::mem;
-use std::os::raw::c_int;
-use std::ptr;
-use std::slice;
+use std::{convert::TryFrom, mem, os::raw::c_int, ptr, slice};
 
 use num_traits::Num;
 use rust_ndarray::{Array, ArrayD};

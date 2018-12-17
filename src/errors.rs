@@ -1,7 +1,6 @@
 //! This module implements TVM custom [`Error`], [`ErrorKind`] and [`Result`] types.
 
-use std::ffi;
-use std::option;
+use std::{ffi, option};
 
 use rust_ndarray;
 

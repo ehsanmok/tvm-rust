@@ -6,19 +6,18 @@
 //!
 //! See the `tests` and `examples` repository for usage examples.
 
-use std::ffi::{CStr, CString};
-use std::mem;
-use std::os::raw::{c_char, c_int, c_void};
-use std::ptr;
-use std::slice;
-use std::str;
-use std::sync::Mutex;
+use std::{
+    ffi::{CStr, CString},
+    mem,
+    os::raw::{c_char, c_int, c_void},
+    ptr, slice, str,
+    sync::Mutex,
+};
 
 use ts;
 
 use ty::TypeCode;
-use value::TVMValue;
-use value::ValueKind;
+use value::{TVMValue, ValueKind};
 use ErrorKind;
 use Module;
 use Result;

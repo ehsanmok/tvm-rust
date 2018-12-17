@@ -16,9 +16,11 @@
 //! println!("{}", cpu0);
 //! ```
 
-use std::fmt::{self, Display, Formatter};
-use std::os::raw::c_void;
-use std::ptr;
+use std::{
+    fmt::{self, Display, Formatter},
+    os::raw::c_void,
+    ptr,
+};
 
 use function;
 use internal_api;

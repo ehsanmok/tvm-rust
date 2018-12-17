@@ -1,10 +1,6 @@
 extern crate bindgen;
 
-use std::env;
-use std::error::Error;
-use std::path::PathBuf;
-use std::process;
-use std::result::Result;
+use std::{env, error::Error, path::PathBuf, process, result::Result};
 
 const TVM_RUNTIME: &'static str = "tvm_runtime";
 

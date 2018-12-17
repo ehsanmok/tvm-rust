@@ -9,12 +9,14 @@
 //! assert_eq!(b.to_int() as i8, a);
 //! ```
 
-use std::ffi::{CStr, CString};
-use std::fmt::{self, Debug, Formatter};
-use std::marker::PhantomData;
-use std::mem;
-use std::ops::{Deref, DerefMut};
-use std::os::raw::{c_char, c_void};
+use std::{
+    ffi::{CStr, CString},
+    fmt::{self, Debug, Formatter},
+    marker::PhantomData,
+    mem,
+    ops::{Deref, DerefMut},
+    os::raw::{c_char, c_void},
+};
 
 use ts;
 

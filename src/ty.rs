@@ -10,9 +10,11 @@
 //! println!("dtype is: {}", dtype);
 //! ```
 
-use std::ffi::{CStr, CString};
-use std::fmt::{self, Display, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::{
+    ffi::{CStr, CString},
+    fmt::{self, Display, Formatter},
+    ops::{Deref, DerefMut},
+};
 
 use ts;
 
