@@ -7,16 +7,16 @@ use tvm::*;
 
 fn main() {
     println!("start integration test");
-    let mut shape = vec![2];
+    let shape = &mut [2];
     let mut data = vec![3f32, 4.0];
 
     if cfg!(feature = "cpu") {
         println!("cpu test");
-        let mut arr = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+        let mut arr = empty(shape, TVMContext::cpu(0), TVMType::from("float"));
 
         arr.copy_from_buffer(data.as_mut_slice());
 
-        let mut ret = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+        let mut ret = empty(shape, TVMContext::cpu(0), TVMType::from("float"));
         let path = Path::new("add_cpu.so");
         let mut fadd = Module::load(&path).unwrap();
         assert!(fadd.enabled("cpu".to_owned()));
@@ -34,11 +34,11 @@ fn main() {
 
     if cfg!(feature = "gpu") {
         println!("gpu test");
-        let mut arr = empty(&mut shape, TVMContext::gpu(0), TVMType::from("float"));
+        let mut arr = empty(shape, TVMContext::gpu(0), TVMType::from("float"));
 
         arr.copy_from_buffer(data.as_mut_slice());
 
-        let mut ret = empty(&mut shape, TVMContext::gpu(0), TVMType::from("float"));
+        let mut ret = empty(shape, TVMContext::gpu(0), TVMType::from("float"));
         let path = Path::new("add_gpu.so");
         let ptx = Path::new("add_gpu.ptx");
         let mut fadd = Module::load(path).unwrap();

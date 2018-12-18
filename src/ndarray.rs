@@ -14,7 +14,7 @@
 //!     .unwrap()
 //!     .into_dyn(); // Rust's ndarray
 //! let nd = NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
-//! assert_eq!(nd.shape(), Some(vec![2, 2]));
+//! assert_eq!(nd.shape(), Some(&mut [2, 2]));
 //! let rnd: ArrayD<f32> = ArrayD::try_from(&nd).unwrap();
 //! assert!(rnd.all_close(&a, 1e-8f32));
 //! ```
@@ -64,18 +64,19 @@ impl NDArray {
     }
 
     /// Returns the shape of the NDArray.
-    pub fn shape(&self) -> Option<Vec<usize>> {
+    pub fn shape(&self) -> Option<&mut [usize]> {
         let arr = unsafe { *(self.handle) };
         if arr.shape.is_null() || arr.data.is_null() {
             return None;
         };
         let slc = unsafe { slice::from_raw_parts_mut(arr.shape as *mut usize, arr.ndim as usize) };
-        Some(slc.to_vec())
+        Some(slc)
     }
 
     /// Returns the total number of entries of the NDArray.
     pub fn size(&self) -> Option<usize> {
-        self.shape().map(|v| v.into_iter().product())
+        self.shape()
+            .map(|v| v.into_iter().fold(1, |acc, &mut e| acc * e))
     }
 
     /// Returns the context which the NDArray was defined.
@@ -133,10 +134,10 @@ impl NDArray {
     /// ## Example
     ///
     /// ```
-    /// let mut shape = vec![4];
+    /// let shape = &mut [4];
     /// let mut data = vec![1i32, 2, 3, 4];
     /// let ctx = TVMContext::cpu(0);
-    /// let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
+    /// let mut ndarray = empty(shape, ctx, TVMType::from("int"));
     /// ndarray.copy_from_buffer(&mut data);
     /// assert_eq!(ndarray.shape(), Some(shape));
     /// assert_eq!(ndarray.to_vec::<i32>().unwrap(), data);
@@ -145,7 +146,7 @@ impl NDArray {
         if self.shape().is_none() {
             bail!("{}", ErrorKind::EmptyArray);
         }
-        let earr = empty(&mut self.shape()?, TVMContext::cpu(0), self.dtype());
+        let earr = empty(self.shape()?, TVMContext::cpu(0), self.dtype());
         let target = self.copy_to_ndarray(earr)?;
         let arr = unsafe { *(target.handle) };
         let sz = self.size()? as usize;
@@ -168,10 +169,10 @@ impl NDArray {
     /// ## Example
     ///
     /// ```
-    /// let mut shape = vec![2];
+    /// let shape = &mut [2];
     /// let mut data = vec![1f32, 2];
     /// let ctx = TVMContext::gpu(0);
-    /// let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
+    /// let mut ndarray = empty(shape, ctx, TVMType::from("int"));
     /// ndarray.copy_from_buffer(&mut data);
     /// ```
     ///
@@ -206,7 +207,7 @@ impl NDArray {
 
     /// Copies the NDArray to a target context.
     pub fn copy_to_ctx(&self, target: &TVMContext) -> Result<NDArray> {
-        let tmp = empty(&mut self.shape()?, target.clone(), self.dtype());
+        let tmp = empty(self.shape()?, target.clone(), self.dtype());
         let copy = self.copy_to_ndarray(tmp)?;
         Ok(copy)
     }
@@ -226,7 +227,7 @@ impl NDArray {
 }
 
 /// Creates an empty NDArray given shape, context and dtype.
-pub fn empty(shape: &mut Vec<usize>, ctx: TVMContext, dtype: TVMType) -> NDArray {
+pub fn empty(shape: &mut [usize], ctx: TVMContext, dtype: TVMType) -> NDArray {
     let mut handle = ptr::null_mut() as ts::TVMArrayHandle;
     check_call!(ts::TVMArrayAlloc(
         shape.as_ptr() as *const i64,
@@ -250,10 +251,7 @@ macro_rules! impl_from_ndarray_rustndarray {
                     bail!("{}", ErrorKind::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(Array::from_shape_vec(
-                    nd.shape()?.clone(),
-                    nd.to_vec::<$type>()?,
-                )?)
+                Ok(Array::from_shape_vec(&*nd.shape()?, nd.to_vec::<$type>()?)?)
             }
         }
 
@@ -264,10 +262,7 @@ macro_rules! impl_from_ndarray_rustndarray {
                     bail!("{}", ErrorKind::EmptyArray);
                 }
                 assert_eq!(nd.dtype(), TVMType::from($type_name), "Type mismatch");
-                Ok(Array::from_shape_vec(
-                    nd.shape()?.clone(),
-                    nd.to_vec::<$type>()?,
-                )?)
+                Ok(Array::from_shape_vec(&*nd.shape()?, nd.to_vec::<$type>()?)?)
             }
         }
     };
@@ -306,11 +301,14 @@ mod tests {
 
     #[test]
     fn basics() {
-        let mut shape = vec![1, 2, 3];
+        let shape = &mut [1, 2, 3];
         let ctx = TVMContext::cpu(0);
-        let ndarray = empty(&mut shape, ctx, TVMType::from("int"));
+        let ndarray = empty(shape, ctx, TVMType::from("int"));
         assert_eq!(ndarray.shape().unwrap(), shape);
-        assert_eq!(ndarray.size().unwrap(), shape.into_iter().product());
+        assert_eq!(
+            ndarray.size().unwrap(),
+            shape.to_vec().into_iter().product()
+        );
         assert_eq!(ndarray.ndim(), 3);
         assert!(ndarray.strides().is_none());
         assert_eq!(ndarray.byte_offset(), 0);
@@ -318,13 +316,13 @@ mod tests {
 
     #[test]
     fn copy() {
-        let mut shape = vec![4];
+        let shape = &mut [4];
         let mut data = vec![1i32, 2, 3, 4];
         let ctx = TVMContext::cpu(0);
-        let mut ndarray = empty(&mut shape, ctx, TVMType::from("int"));
+        let mut ndarray = empty(shape, ctx, TVMType::from("int"));
         assert!(ndarray.to_vec::<i32>().is_ok());
         ndarray.copy_from_buffer(&mut data);
-        assert_eq!(ndarray.shape(), Some(shape));
+        assert_eq!(ndarray.shape().unwrap(), shape);
         assert_eq!(ndarray.to_vec::<i32>().unwrap(), data);
         assert_eq!(ndarray.ndim(), 1);
         assert!(ndarray.is_contiguous().is_ok());
@@ -355,7 +353,7 @@ mod tests {
             .into_dyn();
         let nd =
             NDArray::from_rust_ndarray(&a, TVMContext::cpu(0), TVMType::from("float")).unwrap();
-        assert_eq!(nd.shape(), Some(vec![2, 2]));
+        assert_eq!(nd.shape().unwrap(), &mut [2, 2]);
         let rnd: ArrayD<f32> = ArrayD::try_from(&nd).unwrap();
         assert!(rnd.all_close(&a, 1e-8f32));
     }

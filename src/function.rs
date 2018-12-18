@@ -277,7 +277,7 @@ impl<'a> From<Function> for Builder<'a> {
     }
 }
 
-/// Converts a mutable reference of a [`Module`] to [`function::Builder`].
+/// Converts a mutable reference of a [`Module`] to [`Builder`].
 impl<'a: 'b, 'b> From<&'b mut Module> for Builder<'a> {
     fn from(module: &mut Module) -> Self {
         Builder::new(module.entry.take(), None, None)

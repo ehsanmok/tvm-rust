@@ -15,9 +15,9 @@ fn main() {
     register_global_func! {
         fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
             let mut ret = 0f32;
-            let mut shape = vec![2];
+            let shape = &mut [2];
             for arg in args.iter() {
-                let e = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+                let e = empty(shape, TVMContext::cpu(0), TVMType::from("float"));
                 let arr = arg.to_ndarray().copy_to_ndarray(e).unwrap();
                 let rnd: ArrayD<f32> = ArrayD::try_from(&arr).unwrap();
                 ret += rnd.scalar_sum();
@@ -27,9 +27,9 @@ fn main() {
         }
     }
 
-    let mut shape = vec![2];
+    let shape = &mut [2];
     let mut data = vec![3f32, 4.0];
-    let mut arr = empty(&mut shape, TVMContext::cpu(0), TVMType::from("float"));
+    let mut arr = empty(shape, TVMContext::cpu(0), TVMType::from("float"));
     arr.copy_from_buffer(data.as_mut_slice());
 
     let mut registered = function::Builder::default();

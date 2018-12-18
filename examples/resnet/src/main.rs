@@ -79,12 +79,8 @@ fn main() -> Result<(), Box<Error>> {
     // execute the run function. Note that it has no argument.
     tvm_call!(run_fn,)?;
     // prepare to get the output
-    let mut output_shape = vec![1, 1000];
-    let output = empty(
-        &mut output_shape,
-        TVMContext::cpu(0),
-        TVMType::from("float"),
-    );
+    let output_shape = &mut [1, 1000];
+    let output = empty(output_shape, TVMContext::cpu(0), TVMType::from("float"));
     // get the `get_output` function from runtime module
     let get_output_fn = graph_runtime_module
         .get_function("get_output", false)
