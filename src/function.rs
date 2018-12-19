@@ -70,6 +70,8 @@ pub struct Function {
     is_global: bool,
     // whether the function has been dropped from frontend or not.
     is_released: bool,
+    // whether the function has been cloned from frontend or not.
+    is_cloned: bool,
 }
 
 impl Function {
@@ -78,6 +80,7 @@ impl Function {
             handle: handle,
             is_global: is_global,
             is_released: is_released,
+            is_cloned: false,
         }
     }
 
@@ -93,33 +96,36 @@ impl Function {
         self.handle
     }
 
+    /// Returns `true` if the underlying TVM function is global and `false` otherwise.
     pub fn is_global(&self) -> bool {
         self.is_global
     }
 
+    /// Returns `true` if the underlying TVM function has been released
+    /// from the frontend and `false` otherwise.
     pub fn is_released(&self) -> bool {
         self.is_released
     }
 }
 
-// TODO: make clone automatic and free of `is_global` change.
 impl Clone for Function {
     fn clone(&self) -> Function {
-        if !self.is_released {
+        if !self.is_released && !self.is_cloned {
             Self {
                 handle: self.handle,
-                is_global: true,
-                is_released: false,
+                is_global: self.is_global,
+                is_released: self.is_released,
+                is_cloned: true,
             }
         } else {
-            panic!("Released function cannot be cloned!");
+            Function::new(self.handle, self.is_global, self.is_released)
         }
     }
 }
 
 impl Drop for Function {
     fn drop(&mut self) {
-        if !self.is_released && !self.is_global {
+        if !self.is_released && !self.is_global && !self.is_cloned {
             check_call!(ts::TVMFuncFree(self.handle));
             self.is_released = true;
         }
