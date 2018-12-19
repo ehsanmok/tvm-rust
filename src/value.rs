@@ -216,7 +216,7 @@ impl DerefMut for TVMValue {
     }
 }
 
-/// This type is needed for passing supported values as arguments to [`tvm_call!`]
+/// This type is needed for passing supported values as arguments to [`call_packed!`]
 /// or [`function::Builder`]. Checkout the methods and from conversions.
 ///
 /// ## Example

@@ -458,10 +458,10 @@ macro_rules! register_global_func {
 /// one can use
 ///
 /// ```
-/// tvm_call!(func, &a, &b);
+/// call_packed!(func, &a, &b);
 /// ```
 #[macro_export]
-macro_rules! tvm_call {
+macro_rules! call_packed {
     ($fn_name:ident, $($arg:expr),*) => {{
         let mut builder = $crate::function::Builder::from($fn_name);
         $(

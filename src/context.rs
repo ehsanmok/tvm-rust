@@ -188,8 +188,8 @@ impl TVMContext {
         let func = internal_api::get_api("_GetDeviceAttr".to_owned());
         let dt = self.device_type.0 as usize;
         // `unwrap` is ok here because if there is any error,
-        // if would occure inside `tvm_call!`
-        let ret = tvm_call!(func, &dt, &self.device_id, &0).unwrap();
+        // if would occure inside `call_packed!`
+        let ret = call_packed!(func, &dt, &self.device_id, &0).unwrap();
         ret.to_int() != 0
     }
 

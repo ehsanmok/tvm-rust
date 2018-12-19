@@ -79,7 +79,7 @@ impl Module {
         let path_str = path.to_str()?.to_owned();
         let ext = path.extension()?.to_str()?.to_owned();
         let func = internal_api::get_api("module._LoadFromFile".to_owned());
-        let ret = tvm_call!(func, &path_str, &ext)?;
+        let ret = call_packed!(func, &path_str, &ext)?;
         mem::forget(path);
         Ok(ret.to_module())
     }
@@ -88,8 +88,8 @@ impl Module {
     pub fn enabled(&self, target: String) -> bool {
         let func = internal_api::get_api("module._Enabled".to_owned());
         // `unwrap` is safe here because if there is any error during the
-        // function call, it would occur in `tvm_call!`.
-        let ret = tvm_call!(func, &target).unwrap();
+        // function call, it would occur in `call_packed!`.
+        let ret = call_packed!(func, &target).unwrap();
         ret.to_int() != 0
     }
 

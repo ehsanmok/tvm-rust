@@ -50,7 +50,7 @@ fn main() -> Result<(), Box<Error>> {
     // get the global TVM graph runtime function
     let runtime_create_fn = Function::get_function("tvm.graph_runtime.create", true).unwrap();
 
-    let runtime_create_fn_ret = tvm_call!(
+    let runtime_create_fn_ret = call_packed!(
         runtime_create_fn,
         &graph,
         &lib,
@@ -67,17 +67,17 @@ fn main() -> Result<(), Box<Error>> {
     let params: Vec<u8> = fs::read("deploy_param.params")?;
     let barr = TVMByteArray::from(&params);
     // load the parameters
-    tvm_call!(load_param_fn, &barr)?;
+    call_packed!(load_param_fn, &barr)?;
     // get the set_input function
     let set_input_fn = graph_runtime_module
         .get_function("set_input", false)
         .unwrap();
 
-    tvm_call!(set_input_fn, "data", &input)?;
+    call_packed!(set_input_fn, "data", &input)?;
     // get `run` function from runtime module
     let run_fn = graph_runtime_module.get_function("run", false).unwrap();
     // execute the run function. Note that it has no argument.
-    tvm_call!(run_fn,)?;
+    call_packed!(run_fn,)?;
     // prepare to get the output
     let output_shape = &mut [1, 1000];
     let output = empty(output_shape, TVMContext::cpu(0), TVMType::from("float"));
@@ -86,7 +86,7 @@ fn main() -> Result<(), Box<Error>> {
         .get_function("get_output", false)
         .unwrap();
     // execute the get output function
-    tvm_call!(get_output_fn, &0, &output)?;
+    call_packed!(get_output_fn, &0, &output)?;
     // flatten the output as Vec<f32>
     let output = output.to_vec::<f32>()?;
     // find the maximum entry in the output and its index
