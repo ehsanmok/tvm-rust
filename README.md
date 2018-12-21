@@ -92,6 +92,8 @@ let output = output.to_vec::<f32>()?;
 
 Please checkout [examples/resnet](https://github.com/ehsanmok/tvm-rust/tree/master/examples/resnet) for the complete end-to-end example.
 
+Build the docs locally `cargo doc --no-deps --open`.
+
 ## Installation
 
 Please follow the TVM [installation](https://docs.tvm.ai/install/index.html), `export TVM_HOME=/path/to/tvm` and add `libtvm_runtime` to your `LD_LIBRARY_PATH`.
