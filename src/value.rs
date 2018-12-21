@@ -12,6 +12,7 @@
 //! ```
 
 use std::{
+    any::Any,
     ffi::{CStr, CString},
     fmt::{self, Debug, Formatter},
     marker::PhantomData,
@@ -265,15 +266,30 @@ where
 /// let arg = TVMRetValue::from(&ctx);
 /// assert_eq!(arg.to_ctx(), ctx);
 /// ```
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct TVMRetValue {
     pub value: TVMValue,
+    box_value: Box<Any>,
     pub type_code: TypeCode,
 }
 
 impl TVMRetValue {
     pub(crate) fn new(value: TVMValue, type_code: TypeCode) -> Self {
-        Self { value, type_code }
+        Self {
+            value,
+            box_value: box (),
+            type_code,
+        }
+    }
+}
+
+impl Clone for TVMRetValue {
+    fn clone(&self) -> TVMRetValue {
+        TVMRetValue {
+            value: self.value.clone(),
+            box_value: box (),
+            type_code: self.type_code,
+        }
     }
 }
 

@@ -37,5 +37,6 @@ fn main() {
             println!("panic occurred but can't get location information");
         }
     }));
-    panic::catch_unwind(move || registered.invoke());
+
+    let _result = registered.invoke();
 }

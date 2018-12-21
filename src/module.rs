@@ -85,11 +85,11 @@ impl Module {
     }
 
     /// Checks if a target device is enabled for a module.
-    pub fn enabled(&self, target: String) -> bool {
+    pub fn enabled(&self, target: &str) -> bool {
         let func = internal_api::get_api("module._Enabled".to_owned());
         // `unwrap` is safe here because if there is any error during the
         // function call, it would occur in `call_packed!`.
-        let ret = call_packed!(func, &target).unwrap();
+        let ret = call_packed!(func, target).unwrap();
         ret.to_int() != 0
     }
 
