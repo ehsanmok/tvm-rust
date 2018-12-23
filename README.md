@@ -144,7 +144,7 @@ if __name__ == "__main__":
 
 ### Run the Generated Shared Library
 
-The following code snippet demonstrate how to load generated shared library (`add_cpu.so`).
+The following code snippet demonstrate how to load generated shared library (`add_gpu.so`).
 
 ```rust
 extern crate tvm_frontend as tvm;
@@ -174,15 +174,15 @@ fn main() {
     assert_eq!(ret.to_vec::<f32>().unwrap(), vec![6f32, 8.0]);
 }
 ```
-**Note:** it is required to instruct the `rustc` to link to the generated `add_cpu.so` in runtime, for example by
-`cargo:rustc-link-search=native=add_cpu`. 
+**Note:** it is required to instruct the `rustc` to link to the generated `add_gpu.so` in runtime, for example by
+`cargo:rustc-link-search=native=add_gpu`. 
 
 See the tests and examples custom `build.rs` for more details.
 
 ### Convert and Register a Rust Function as a TVM Packed Function
 
 One can you the `register_global_func!` macro to convert and register a Rust's 
-function of type `fn(&[TVMArgValue]) -> Result<TVMRetValue>` to a *global TVM packed function* as follows
+function of type `fn(&[TVMArgValue]) -> Result<TVMRetValue>` to a global TVM **packed function** as follows
 
 ```rust
 #[macro_use]
