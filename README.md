@@ -1,22 +1,22 @@
-# TVM runtime frontend support (pre-release)
+# TVM Runtime Frontend Support
 
-This crate provides idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend as part of [RFC 1601](https://github.com/dmlc/tvm/issues/1601). Currently this requires **Nightly Rust**.
+This crate provides idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend as part of [ongoing RFC 1601](https://github.com/dmlc/tvm/issues/1601). Currently this requires **Nightly Rust**.
 
-Checkout the [docs](https://ehsanmok.github.io/tvm_frontend/tvm_frontend/index.html)
+Checkout the [docs](https://ehsanmok.github.io/tvm_frontend/tvm_frontend/index.html).
 
-## What does this crate offer?
+## What Does This Crate Offer?
 
 Here is a major workflow
 
-1. Train your Deep Learning model using any major deep learning framework [PyTorch](https://pytorch.org/), [Apache MXNet](https://mxnet.incubator.apache.org/) and [TensorFlow](https://www.tensorflow.org/)
-2. Use TVM to build optimized model artifacts on a given supported TVM context such as CPU, GPU, OpenCL, Vulkan, VPI, ROCM, etc.
-3. Deploy your models using Rust :heart:
+1. Train your **Deep Learning** model using any major framework [PyTorch](https://pytorch.org/), [Apache MXNet](https://mxnet.incubator.apache.org/) and [TensorFlow](https://www.tensorflow.org/)
+2. Use **TVM** to build optimized model artifacts for a given supported TVM context such as CPU, GPU, OpenCL, Vulkan, VPI, ROCM, etc.
+3. Deploy your models using **Rust** :heart:
 
-### Example: Resnet18 pretrained on Imagenet
+### Example: Deploy Image Classification from Pretrained Resnet18 on ImageNet1k
 
 Please checkout [examples/resnet](https://github.com/ehsanmok/tvm-rust/tree/master/examples/resnet) for the complete end-to-end example.
 
-Here's python snippet for download and building Resnet18 via MXNet and TVM
+Here's python snippet for download and building a pretrained Resnet18 via MXNet and TVM
 
 ```python
 block = get_model('resnet18_v1', pretrained=True)
@@ -100,7 +100,7 @@ Please follow the TVM [installation](https://docs.tvm.ai/install/index.html), `e
 
 *Note:* To run the end-to-end examples and tests, `tvm`, `nnvm` and `topi` need to be added to your `PYTHONPATH`.
 
-## Other supported functionalities
+## Supported TVM Functionalities
 
 ### Use TVM to Generate Shared Library
 
