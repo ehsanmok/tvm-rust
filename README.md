@@ -104,31 +104,42 @@ Please follow the TVM [installation](https://docs.tvm.ai/install/index.html), `e
 
 ### Use TVM to Generate Shared Library
 
-One can use the following Python snippet to generate `add_cpu.so` which add two vectors on CPU.
+One can use the following Python snippet to generate `add_gpu.so` which add two vectors on GPU.
 
 ```python
 import os
+
 import tvm
-from tvm.contrib import cc, util
+from tvm.contrib import cc
+
 
 def test_add(target_dir):
+    if not tvm.module.enabled("cuda"):
+        print(f"skip {__file__} because cuda is not enabled...")
+        return
     n = tvm.var("n")
     A = tvm.placeholder((n,), name='A')
     B = tvm.placeholder((n,), name='B')
     C = tvm.compute(A.shape, lambda i: A[i] + B[i], name="C")
-    s = tvm.create_schedule(C.op)
-    fadd = tvm.build(s, [A, B, C], "llvm", target_host="llvm", name="myadd")
 
-    fadd.save(os.path.join(target_dir, "add_cpu.o"))
-    cc.create_shared(os.path.join(target_dir, "add_cpu.so"),
-            [os.path.join(target_dir, "add_cpu.o")])
+    s = tvm.create_schedule(C.op)
+
+    bx, tx = s[C].split(C.op.axis[0], factor=64)
+    s[C].bind(bx, tvm.thread_axis("blockIdx.x"))
+    s[C].bind(tx, tvm.thread_axis("threadIdx.x"))
+    fadd_cuda = tvm.build(s, [A, B, C], "cuda", target_host="llvm", name="myadd")
+
+    fadd_cuda.save(os.path.join(target_dir, "add_gpu.o"))
+    fadd_cuda.imported_modules[0].save(os.path.join(target_dir, "add_gpu.ptx"))
+    cc.create_shared(os.path.join(target_dir, "add_gpu.so"),
+            [os.path.join(target_dir, "add_gpu.o")])
+
 
 if __name__ == "__main__":
     import sys
     if len(sys.argv) != 2:
         sys.exit(-1)
     test_add(sys.argv[1])
-
 ```
 
 ### Run the Generated Shared Library
@@ -143,18 +154,16 @@ use tvm::*;
 fn main() {
     let shape = &mut [2];
     let mut data = vec![3f32, 4.0];
-
-    let mut arr = empty(shape, TVMContext::cpu(0), TVMType::from("float"));
+    let mut arr = empty(shape, TVMContext::gpu(0), TVMType::from("float"));
     arr.copy_from_buffer(data.as_mut_slice());
-
-    let mut ret = empty(shape, TVMContext::cpu(0), TVMType::from("float"));
-
-    let path = Path::new("add_cpu.so");
-
-    let mut fadd = Module::load(&path).unwrap();
-    assert!(fadd.enabled("cpu".to_owned()));
-    fadd = fadd.entry_func();
-
+    let mut ret = empty(shape, TVMContext::gpu(0), TVMType::from("float"));
+    let path = Path::new("add_gpu.so");
+    let ptx = Path::new("add_gpu.ptx");
+    let mut fadd = Module::load(path).unwrap();
+    let fadd_dep = Module::load(ptx).unwrap();
+    assert!(fadd.enabled("gpu"));
+    fadd.import_module(fadd_dep);
+    fadd.entry_func();
     function::Builder::from(&mut fadd)
         .arg(&arr)
         .arg(&arr)
