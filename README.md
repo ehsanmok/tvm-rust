@@ -1,16 +1,20 @@
-# TVM runtime frontend support
+# TVM runtime frontend support (pre-release)
 
 This crate provides idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend as part of [RFC 1601](https://github.com/dmlc/tvm/issues/1601). Currently this requires **Nightly Rust**.
 
+Checkout the [docs](https://ehsanmok.github.io/tvm_frontend/tvm_frontend/index.html)
+
 ## What does this crate offer?
 
-Here is the major workflow
+Here is a major workflow
 
 1. Train your Deep Learning model using any major deep learning framework [PyTorch](https://pytorch.org/), [Apache MXNet](https://mxnet.incubator.apache.org/) and [TensorFlow](https://www.tensorflow.org/)
 2. Use TVM to build optimized model artifacts on a given supported TVM context such as CPU, GPU, OpenCL, Vulkan, VPI, ROCM, etc.
 3. Deploy your models using Rust :heart:
 
 ### Example: Resnet18 pretrained on Imagenet
+
+Please checkout [examples/resnet](https://github.com/ehsanmok/tvm-rust/tree/master/examples/resnet) for the complete end-to-end example.
 
 Here's python snippet for download and building Resnet18 via MXNet and TVM
 
@@ -89,10 +93,6 @@ call_packed!(get_output_fn, &0, &output)?;
 // flatten the output as Vec<f32>
 let output = output.to_vec::<f32>()?;
 ```
-
-Please checkout [examples/resnet](https://github.com/ehsanmok/tvm-rust/tree/master/examples/resnet) for the complete end-to-end example.
-
-Build the docs locally `cargo doc --no-deps --open`.
 
 ## Installation
 
