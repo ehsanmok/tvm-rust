@@ -1,5 +1,5 @@
-//! This module implements [`NDArray`] type for working with TVM tensors or
-//! covertsion from Rust's ndarray to TVM `NDArray`.
+//! This module implements the [`NDArray`] type for working with *TVM tensors* or
+//! coverting from a Rust's ndarray to TVM `NDArray`.
 //!
 //! One can create an empty NDArray given the shape, context and dtype using [`empty`].
 //! To create an NDArray from a mutable buffer in cpu use [`copy_from_buffer`].
@@ -103,6 +103,7 @@ impl NDArray {
         }
     }
 
+    /// Shows whether the underlying ndarray is contiguous in memory or not.
     pub fn is_contiguous(&self) -> Result<bool> {
         Ok(match self.strides() {
             None => true,
@@ -129,7 +130,7 @@ impl NDArray {
         unsafe { (*self.handle).byte_offset as isize }
     }
 
-    /// Flattens the NDArray to a Vec of the same type in cpu.
+    /// Flattens the NDArray to a `Vec` of the same type in cpu.
     ///
     /// ## Example
     ///
@@ -166,6 +167,7 @@ impl NDArray {
     }
 
     /// Creates an NDArray from a mutable buffer of types i32, u32 or f32 in cpu.
+    ///
     /// ## Example
     ///
     /// ```
@@ -226,7 +228,7 @@ impl NDArray {
     }
 }
 
-/// Creates an empty NDArray given shape, context and dtype.
+/// Allocates and creates an empty NDArray given the shape, context and dtype.
 pub fn empty(shape: &mut [usize], ctx: TVMContext, dtype: TVMType) -> NDArray {
     let mut handle = ptr::null_mut() as ts::TVMArrayHandle;
     check_call!(ts::TVMArrayAlloc(

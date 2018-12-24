@@ -1,10 +1,10 @@
-//! This module provides idiomatic Rust API for creating and working with TVM functions.
+//! This module provides an idiomatic Rust API for creating and working with TVM functions.
 //!
-//! For calling an already registered TVM function use [`function::Builder`] and to register
-//! a TVM packed function from Rust either use [`function::register`] or the
-//! macro [`register_global_func`].
+//! For calling an already registered TVM function use [`function::Builder`]
+//! To register a TVM packed function from Rust side either
+//! use [`function::register`] or the macro [`register_global_func`].
 //!
-//! See the `tests` and `examples` repository for usage examples.
+//! See the tests and examples repository for more examples.
 
 use std::{
     ffi::{CStr, CString},
@@ -60,8 +60,9 @@ pub fn get_global_func(name: &str, is_global: bool) -> Option<Function> {
 }
 
 /// Wrapper around TVM function handle which includes `is_global`
-/// indicating whether the function is global or not and `is_released`
-/// to help for dropping the function handle.
+/// indicating whether the function is global or not, `is_released`
+/// to hint dropping the function handle and `is_cloned` showing
+/// not to drop a cloned function from Rust side.
 /// The value of these fields can be accessed through their respective methods.
 #[derive(Debug, Hash)]
 pub struct Function {
@@ -106,6 +107,12 @@ impl Function {
     pub fn is_released(&self) -> bool {
         self.is_released
     }
+
+    /// Returns `true` if the underlying TVM function has been cloned
+    /// from the frontend and `false` otherwise.
+    pub fn is_cloned(&self) -> bool {
+        self.is_cloned
+    }
 }
 
 impl Clone for Function {
@@ -133,7 +140,8 @@ impl Drop for Function {
 }
 
 /// Function builder in order to create and call functions.
-/// *Note:* Currently TVM functions accept at most one return value.
+///
+/// *Note:* Currently TVM functions accept *at most* one return value.
 #[derive(Debug, Clone, Default)]
 pub struct Builder<'a> {
     pub func: Option<Function>,
@@ -159,7 +167,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    /// Pushes a [`TVMArgValue`] into the function.
+    /// Pushes a [`TVMArgValue`] into the function argument buffer.
     pub fn arg<'b, T: ?Sized>(&mut self, arg: &'b T) -> &mut Self
     where
         TVMValue: From<&'b T>,
@@ -181,7 +189,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    /// Pushes multiple [`TVMArgValue`]s into the function.
+    /// Pushes multiple [`TVMArgValue`]s into the function argument buffer.
     pub fn args<'b, T: 'b + ?Sized, I>(&mut self, args: I) -> &mut Self
     where
         I: IntoIterator<Item = &'b T>,
@@ -195,7 +203,7 @@ impl<'a> Builder<'a> {
     }
 
     /// Sets an output for a function that requirs a mutable output to be provided.
-    /// See the `basics` in `tests` for an example.
+    /// See the `basics` in tests for an example.
     pub fn set_output<'b, T: 'b + ?Sized>(&mut self, arg: &'b mut T) -> &mut Self
     where
         TVMValue: From<&'b T>,
@@ -215,7 +223,7 @@ impl<'a> Builder<'a> {
         self
     }
 
-    /// Calls the function that created from builder.
+    /// Calls the function that created from `Builder`.
     pub fn invoke(&mut self) -> Result<TVMRetValue> {
         self.clone()(())
     }
@@ -356,7 +364,7 @@ fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue>) -> Function
 }
 
 /// Registers a Rust function with signature
-/// `fn(&[TVMArgValue]) -> Result<TVMRetValue<'static>>`
+/// `fn(&[TVMArgValue]) -> Result<TVMRetValue>`
 /// as a **global TVM packed function** from frontend to TVM backend.
 ///
 /// Use [`register_global_func`] if overriding an existing global TVM function
@@ -365,7 +373,7 @@ fn convert_to_tvm_func(f: fn(&[TVMArgValue]) -> Result<TVMRetValue>) -> Function
 /// ## Example
 ///
 /// ```
-/// fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue<'static>> {
+/// fn sum(args: &[TVMArgValue]) -> Result<TVMRetValue> {
 ///     let mut ret = 0;
 ///     for arg in args.iter() {
 ///         ret += arg.to_int();
@@ -438,8 +446,8 @@ macro_rules! register_global_func {
     }}
 }
 
-/// Convenient macro for calling TVM packed functions by providing
-/// function identifier and the arguments. This macro outputs a `Result`
+/// Convenient macro for calling TVM packed functions by providing a
+/// function identifier and some arguments. This macro outputs a `Result` type
 /// and let user to perform proper error handling.
 ///
 /// **Note**: this macro does *not* expect an outside mutable output. To

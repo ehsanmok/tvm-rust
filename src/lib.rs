@@ -1,11 +1,11 @@
 //! [TVM](https://github.com/dmlc/tvm) is a compiler stack for deep learning systems.
 //!
-//! This crate provides idiomatic Rust API for TVM runtime frontend.
+//! This crate provides an idiomatic Rust API for TVM runtime frontend.
 //!
-//! One particular usage is that given an optimized deep learning model,
-//! compiled with TVM, one can load the model artifacts which includes a shared library
-//! `lib.so`, `graph.json` and byte-array `param.params`
-//! in Rust to create a runtime, run the model for some inputs and get the
+//! One particular use case is that given optimized deep learning model artifacts,
+//! already compiled with TVM, which include a shared library
+//! `lib.so`, `graph.json` and a byte-array `param.params`, one can load them
+//! in Rust to create a graph runtime. Then, run the model for some inputs and get the
 //! desired predictions all in Rust.
 //!
 //! Checkout the `examples` repository for more details.

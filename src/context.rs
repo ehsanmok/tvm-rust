@@ -1,4 +1,4 @@
-//! Provides [`TVMContext`] and related device specific informations.
+//! Provides [`TVMContext`] and related device specific queries.
 //!
 //! Create a new context by device type (cpu is 1) and device id.
 //!
@@ -9,7 +9,8 @@
 //! let cpu0 = TVMContext::cpu(0);
 //! assert_eq!(ctx, cpu0);
 //! ```
-//! Or from supported device name.
+//!
+//! Or from a supported device name.
 //!
 //! ```
 //! let cpu0 = TVMContext::from("cpu");
@@ -27,8 +28,8 @@ use internal_api;
 use ts;
 use Result;
 
-/// Device type which can be from a supported device name. See the supported devices
-/// in [TVM](https://github.com/dmlc/tvm) project.
+/// Device type can be from a supported device name. See the supported devices
+/// in [TVM](https://github.com/dmlc/tvm).
 ///
 /// ## Example
 ///
@@ -128,7 +129,8 @@ impl<'a> From<&'a str> for TVMDeviceType {
 /// assert!(ctx.exist());
 ///
 /// ```
-/// It is possible to query the context and get information such as
+///
+/// It is possible to query the underlying context as follows
 ///
 /// ```
 /// println!("maximun threads per block: {}", ctx.max_threads_per_block());

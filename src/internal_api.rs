@@ -2,6 +2,7 @@ use std::{cell::RefCell, collections::HashMap};
 
 use Function;
 
+// access TVM internal API
 thread_local! {
     pub(crate) static API: RefCell<HashMap<String, Function>> = RefCell::new(HashMap::new());
 }

@@ -7,7 +7,7 @@ use rust_ndarray;
 error_chain!{
     errors {
         EmptyArray {
-            description("cannot convert from empty array")
+            description("cannot convert from an empty array")
         }
 
         NullHandle(name: String) {
@@ -31,6 +31,7 @@ error_chain!{
         }
 
     }
+
     foreign_links {
         ShapeError(rust_ndarray::ShapeError);
         NulError(ffi::NulError);

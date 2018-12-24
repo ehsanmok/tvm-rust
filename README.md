@@ -1,6 +1,6 @@
 # TVM Runtime Frontend Support
 
-This crate provides idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend as part of [ongoing RFC 1601](https://github.com/dmlc/tvm/issues/1601). Currently this requires **Nightly Rust**.
+This crate provides an idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend as part of the [ongoing RFC](https://github.com/dmlc/tvm/issues/1601). Currently this requires **Nightly Rust**.
 
 Checkout the [docs](https://ehsanmok.github.io/tvm_frontend/tvm_frontend/index.html).
 
@@ -8,15 +8,15 @@ Checkout the [docs](https://ehsanmok.github.io/tvm_frontend/tvm_frontend/index.h
 
 Here is a major workflow
 
-1. Train your **Deep Learning** model using any major framework [PyTorch](https://pytorch.org/), [Apache MXNet](https://mxnet.incubator.apache.org/) and [TensorFlow](https://www.tensorflow.org/)
-2. Use **TVM** to build optimized model artifacts for a given supported TVM context such as CPU, GPU, OpenCL, Vulkan, VPI, ROCM, etc.
+1. Train your **Deep Learning** model using any major framework such as [PyTorch](https://pytorch.org/), [Apache MXNet](https://mxnet.incubator.apache.org/) or [TensorFlow](https://www.tensorflow.org/)
+2. Use **TVM** to build optimized model artifacts on a supported context such as CPU, GPU, OpenCL, Vulkan, VPI, ROCM, etc.
 3. Deploy your models using **Rust** :heart:
 
 ### Example: Deploy Image Classification from Pretrained Resnet18 on ImageNet1k
 
 Please checkout [examples/resnet](https://github.com/ehsanmok/tvm-rust/tree/master/examples/resnet) for the complete end-to-end example.
 
-Here's python snippet for download and building a pretrained Resnet18 via MXNet and TVM
+Here's a Python snippet for downloading and building a pretrained Resnet18 via MXNet and TVM
 
 ```python
 block = get_model('resnet18_v1', pretrained=True)
@@ -39,7 +39,7 @@ with open(os.path.join(target_dir,"deploy_param.params"), "wb") as fo:
     fo.write(nnvm.compiler.save_param_dict(params))
 ```
 
-Now, we can read input the artifacts to create and run the Graph Runtime to detect our cat image
+Now, we need to input the artifacts to create and run the *Graph Runtime* to detect our input cat image
 
 ![cat](https://github.com/dmlc/mxnet.js/blob/master/data/cat.png?raw=true)
 
@@ -94,11 +94,11 @@ call_packed!(get_output_fn, &0, &output)?;
 let output = output.to_vec::<f32>()?;
 ```
 
-## Installation
+## Installations
 
-Please follow the TVM [installation](https://docs.tvm.ai/install/index.html), `export TVM_HOME=/path/to/tvm` and add `libtvm_runtime` to your `LD_LIBRARY_PATH`.
+Please follow TVM [installations](https://docs.tvm.ai/install/index.html), `export TVM_HOME=/path/to/tvm` and add `libtvm_runtime` to your `LD_LIBRARY_PATH`.
 
-*Note:* To run the end-to-end examples and tests, `tvm`, `nnvm` and `topi` need to be added to your `PYTHONPATH`.
+*Note:* To run the end-to-end examples and tests, `tvm`, `nnvm` and `topi` need to be added to your `PYTHONPATH` or it's automatic via an Anaconda environment when install individually.
 
 ## Supported TVM Functionalities
 
@@ -108,10 +108,8 @@ One can use the following Python snippet to generate `add_gpu.so` which add two 
 
 ```python
 import os
-
 import tvm
 from tvm.contrib import cc
-
 
 def test_add(target_dir):
     if not tvm.module.enabled("cuda"):
@@ -121,9 +119,7 @@ def test_add(target_dir):
     A = tvm.placeholder((n,), name='A')
     B = tvm.placeholder((n,), name='B')
     C = tvm.compute(A.shape, lambda i: A[i] + B[i], name="C")
-
     s = tvm.create_schedule(C.op)
-
     bx, tx = s[C].split(C.op.axis[0], factor=64)
     s[C].bind(bx, tvm.thread_axis("blockIdx.x"))
     s[C].bind(tx, tvm.thread_axis("threadIdx.x"))
@@ -144,7 +140,7 @@ if __name__ == "__main__":
 
 ### Run the Generated Shared Library
 
-The following code snippet demonstrate how to load generated shared library (`add_gpu.so`).
+The following code snippet demonstrates how to load and test the generated shared library (`add_gpu.so`) in Rust.
 
 ```rust
 extern crate tvm_frontend as tvm;
@@ -174,6 +170,7 @@ fn main() {
     assert_eq!(ret.to_vec::<f32>().unwrap(), vec![6f32, 8.0]);
 }
 ```
+
 **Note:** it is required to instruct the `rustc` to link to the generated `add_gpu.so` in runtime, for example by
 `cargo:rustc-link-search=native=add_gpu`. 
 
@@ -181,7 +178,7 @@ See the tests and examples custom `build.rs` for more details.
 
 ### Convert and Register a Rust Function as a TVM Packed Function
 
-One can you the `register_global_func!` macro to convert and register a Rust's 
+One can use `register_global_func!` macro to convert and register a Rust 
 function of type `fn(&[TVMArgValue]) -> Result<TVMRetValue>` to a global TVM **packed function** as follows
 
 ```rust
@@ -210,12 +207,12 @@ fn main() {
     let mut data = vec![3f32, 4.0];
     let mut arr = empty(shape, TVMContext::cpu(0), TVMType::from("float"));
     arr.copy_from_buffer(data.as_mut_slice());
-
     let mut registered = function::Builder::default();
     registered
         .get_function("sum", true)
         .arg(&arr)
         .arg(&arr);
+
     assert_eq!(registered.invoke().unwrap().to_float(), 14f64);
     }
 ```

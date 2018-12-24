@@ -1,4 +1,4 @@
-//! This module implements the required conversion from Rust types to TVM types.
+//! This module implements the required conversions from Rust types to TVM types.
 //!
 //! In TVM frontend only conversions from 32bits numeric types (i32, u32, f32)
 //! and 64bits pointers are supported.

@@ -1,5 +1,5 @@
 //! This module implements [`TVMArgValue`] and [`TVMRetValue`] types and their conversions
-//! to other support TVMValue. `TVMRetValue` is the owned version of `TVMArgValue`.
+//! to other supported `TVMValues`. `TVMRetValue` is the owned version of `TVMArgValue`.
 //!
 //! # Examples
 //!
@@ -44,7 +44,7 @@ pub(crate) enum ValueKind {
     Return,
 }
 
-/// Wrapper around underlying TVMValue.
+/// Wrapper around the underlying `TVMValue`.
 #[derive(Clone)]
 pub struct TVMValue {
     pub(crate) kind: ValueKind,
@@ -217,8 +217,8 @@ impl DerefMut for TVMValue {
     }
 }
 
-/// This type is needed for passing supported values as arguments to [`call_packed!`]
-/// or [`function::Builder`]. Checkout the methods and from conversions.
+/// This type is needed for passing the supported values as arguments to [`call_packed!`]
+/// or [`function::Builder`]. Checkout the methods for conversions.
 ///
 /// ## Example
 ///
@@ -246,7 +246,7 @@ impl<'a> TVMArgValue<'a> {
     }
 }
 
-/// Main way to create a TVMArgValue from suported Rust's values.
+/// Main way to create a TVMArgValue from suported Rust values.
 impl<'b, 'a: 'b, T: 'b + ?Sized> From<&'b T> for TVMArgValue<'a>
 where
     TVMValue: From<&'b T>,
@@ -266,6 +266,7 @@ where
 /// let arg = TVMRetValue::from(&ctx);
 /// assert_eq!(arg.to_ctx(), ctx);
 /// ```
+// TODO: WIP for unification of runtime and frontend
 #[derive(Debug)]
 pub struct TVMRetValue {
     pub value: TVMValue,
@@ -277,7 +278,7 @@ impl TVMRetValue {
     pub(crate) fn new(value: TVMValue, type_code: TypeCode) -> Self {
         Self {
             value,
-            box_value: box (),
+            box_value: box (), // starting the unification
             type_code,
         }
     }

@@ -1,4 +1,4 @@
-//! Provides [`Module`] type and methods for working with runtime TVM modules.
+//! Provides the [`Module`] type and methods for working with runtime TVM modules.
 
 use std::{
     ffi::CString,
@@ -17,9 +17,9 @@ use Result;
 
 const ENTRY_FUNC: &'static str = "__tvm_main__";
 
-/// Wrapper around TVM module handle which contains an entry function
-/// which can be applied to an imported module through [`entry_func`]
-/// and to check whether the module has be dropped use [`is_released`].
+/// Wrapper around TVM module handle which contains an entry function.
+/// The entry function can be applied to an imported module through [`entry_func`].
+/// Also [`is_released`] shows whether the module is dropped or not.
 ///
 /// [`entry_func`]:struct.Module.html#method.entry_func
 /// [`is_released`]:struct.Module.html#method.is_released

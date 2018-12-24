@@ -1,14 +1,13 @@
-//! Provides [`TVMByteArray`] which is used for passing the model parameters
+//! Provides [`TVMByteArray`] used for passing the model parameters
 //! (stored as byte-array) to a runtime module.
 //!
-//! This function can be obtained from a graph runtime module loading the model.
 //! For more detail, please see the example `resnet` in `examples` repository.
 
 use std::os::raw::c_char;
 
 use ts;
 
-/// A struct holding the TVM byte-array.
+/// A struct holding TVM byte-array.
 ///
 /// ## Example
 ///
