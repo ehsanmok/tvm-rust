@@ -3,12 +3,12 @@ use std::process::Command;
 fn main() {
     let script_path = concat!(env!("CARGO_MANIFEST_DIR"), "/src/build_resnet.py");
     let output = Command::new("python")
-        .args(&[&script_path, env!("CARGO_MANIFEST_DIR")])
+        .arg(script_path)
         .output()
         .expect("Failed to execute command");
-    if output.stderr.len() > 0 {
-        panic!(String::from_utf8(output.stderr).unwrap());
-    }
+
+    println!("stdout: {}", String::from_utf8_lossy(&output.stdout));
+    println!("stderr: {}", String::from_utf8_lossy(&output.stderr));
     println!(
         "cargo:rustc-link-search=native={}",
         env!("CARGO_MANIFEST_DIR")

@@ -21,7 +21,7 @@ fn main() -> Result<(), Box<Error>> {
     let img = image::open("cat.png")?;
     println!("original image dimensions: {:?}", img.dimensions());
     // for bigger size images, one needs to first resize to 256x256
-    // with `img.resize_exact` method and then crop to 224x224
+    // with `img.resize_exact` method and then `image.crop` to 224x224
     let img = img.resize(224, 224, FilterType::Nearest).to_rgb();
     println!("resized image dimensions: {:?}", img.dimensions());
     let mut pixels: Vec<f32> = vec![];
@@ -40,16 +40,19 @@ fn main() -> Result<(), Box<Error>> {
 
     let arr = Array::from_shape_vec((224, 224, 3), pixels)?;
     let arr: ArrayD<f32> = arr.permuted_axes([2, 0, 1]).into_dyn();
+    // make arr shape as [1, 3, 224, 224] acceptable to resnet
     let arr = arr.insert_axis(Axis(0));
     // create input tensor from rust's ndarray
     let input = NDArray::from_rust_ndarray(&arr, TVMContext::cpu(0), TVMType::from("float"))?;
-    println!("input size is {:?}", input.shape().unwrap());
+    println!(
+        "input size is {:?}",
+        input.shape().expect("cannot get the input shape")
+    );
     let graph = fs::read_to_string("deploy_graph.json")?;
-    // load module
+    // load the built module
     let lib = Module::load(&Path::new("deploy_lib.so"))?;
     // get the global TVM graph runtime function
     let runtime_create_fn = Function::get_function("tvm.graph_runtime.create", true).unwrap();
-
     let runtime_create_fn_ret = call_packed!(
         runtime_create_fn,
         &graph,
@@ -76,7 +79,7 @@ fn main() -> Result<(), Box<Error>> {
     call_packed!(set_input_fn, "data", &input)?;
     // get `run` function from runtime module
     let run_fn = graph_runtime_module.get_function("run", false).unwrap();
-    // execute the run function. Note that it has no argument.
+    // execute the run function. Note that it has no argument
     call_packed!(run_fn,)?;
     // prepare to get the output
     let output_shape = &mut [1, 1000];
@@ -100,7 +103,6 @@ fn main() -> Result<(), Box<Error>> {
     }
     // create a hash map of (class id, class name)
     let mut synset: HashMap<i32, String> = HashMap::new();
-
     let file = File::open("synset.csv")?;
     let mut rdr = csv::ReaderBuilder::new()
         .has_headers(true)
@@ -115,7 +117,9 @@ fn main() -> Result<(), Box<Error>> {
 
     println!(
         "input image belongs to the class `{}` with probability {}",
-        synset.get(&argmax).unwrap(),
+        synset
+            .get(&argmax)
+            .expect("cannot find the class id for argmax"),
         max_prob
     );
 
