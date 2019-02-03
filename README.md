@@ -1,6 +1,10 @@
+# DEPRECATED
+
+**The RFC is closed and this has been merge into [TVM](https://github.com/dmlc/tvm/tree/master/rust).**
+
 # TVM Runtime Frontend Support
 
-This crate provides an idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend as part of the [ongoing RFC](https://github.com/dmlc/tvm/issues/1601). Currently this requires **Nightly Rust**.
+This crate provides an idiomatic Rust API for [TVM](https://github.com/dmlc/tvm) runtime frontend as part of the ~~[ongoing RFC](https://github.com/dmlc/tvm/issues/1601)~~. Currently this requires **Nightly Rust**.
 
 Checkout the [docs](https://ehsanmok.github.io/tvm_frontend/tvm_frontend/index.html).
 
